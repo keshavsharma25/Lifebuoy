@@ -1,0 +1,13 @@
+[project]
+name = "lifebuoy"
+version = "0.1.0"
+description = "A python implementation to perform forced inclusion across all major rollups, validiums & optimiums"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "web3>=7.13.0",
+]
+
+[tool.pyright]
+venvPath = "."
+venv = ".venv"
