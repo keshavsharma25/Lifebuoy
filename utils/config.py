@@ -1,5 +1,6 @@
 from enum import StrEnum
 import os
+from typing import Dict
 
 from eth_account.signers.local import LocalAccount
 from web3 import Account
@@ -31,3 +32,9 @@ class LocalAcc:
 
     def get_account(self) -> LocalAccount:
         return self._account
+
+
+OP_STACK_SEPOLIA_CONTRACTS: Dict[ChainName, str] = {
+    ChainName.OP_SEPOLIA: "0x16FC5058F25648194471939DF75CF27A2FDC48BC",
+    ChainName.BASE_SEPOLIA: "0x49f53e41452C74589E85cA1677426Ba426459e85",
+}
