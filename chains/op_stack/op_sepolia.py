@@ -29,7 +29,7 @@ class OP_Sepolia:
             abi=self.get_abi(),
         )
 
-    def deposit_eth(self, to: ChecksumAddress, value: float):
+    def deposit_eth(self, to: ChecksumAddress, value: float) -> TxReceipt:
         is_creation = False
         data = b""
 
@@ -41,7 +41,7 @@ class OP_Sepolia:
         value: float,
         is_creation: bool,
         data: bytes,
-    ):
+    ) -> TxReceipt:
         contract = self.get_l1_contract()
         value = self.l1p.to_wei(value, "ether")
 
@@ -78,7 +78,7 @@ class OP_Sepolia:
         txn_hash = self.l1p.eth.send_raw_transaction(signed_txn.raw_transaction)
         receipt = self.l1p.eth.wait_for_transaction_receipt(txn_hash)
 
-        return cast(dict, receipt)
+        return receipt
 
     def force_withdraw(self):
         pass
