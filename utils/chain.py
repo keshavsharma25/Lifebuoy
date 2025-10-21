@@ -1,10 +1,17 @@
+import os
+from dotenv import load_dotenv
+from eth_account.signers.local import LocalAccount
 from eth_typing import ChecksumAddress
-from web3 import Web3
+from web3 import Account, Web3
 from web3.types import Wei
 
 
 def estimate_l2_gas(
-    w3: Web3, to: ChecksumAddress | None, from_: str, value: Wei, data: bytes
+    w3: Web3,
+    to: ChecksumAddress | None,
+    from_: ChecksumAddress,
+    value: Wei,
+    data: bytes,
 ) -> int:
     if to is None:
         gas_estimate = w3.eth.estimate_gas(
@@ -19,4 +26,17 @@ def estimate_l2_gas(
             {from_: {"balance": w3.to_wei(1000, "ether")}},
         )
 
-    return gas_estimate
+    return int(1.2 * gas_estimate)
+
+
+def get_account() -> LocalAccount:
+    load_dotenv()
+
+    pvt_key = os.getenv("PRIVATE_KEY")
+
+    if type(pvt_key) is not str:
+        raise TypeError(f"Store private key in .env as it is of type `{type(pvt_key)}")
+
+    account: LocalAccount = Account.from_key(pvt_key)
+
+    return account

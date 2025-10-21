@@ -1,9 +1,8 @@
 from enum import StrEnum
-import os
-from typing import Dict
+from typing import Dict, TypedDict
 
-from eth_account.signers.local import LocalAccount
-from web3 import Account
+from eth_typing import ChecksumAddress
+from eth_utils.address import to_checksum_address
 
 
 class ENV(StrEnum):
@@ -21,20 +20,35 @@ class ChainName(StrEnum):
     OP_SEPOLIA = "OP_SEPOLIA"
 
 
-class LocalAcc:
-    def __init__(self) -> None:
-        pvt_key = os.getenv("PRIVATE_KEY")
-
-        if not pvt_key:
-            raise ValueError("PRIVATE_KEY not set in .env...")
-
-        self._account: LocalAccount = Account.from_key(pvt_key)
-
-    def get_account(self) -> LocalAccount:
-        return self._account
+# OP STACK CONFIG
 
 
-OP_STACK_SEPOLIA_CONTRACTS: Dict[ChainName, str] = {
-    ChainName.OP_SEPOLIA: "0x16FC5058F25648194471939DF75CF27A2FDC48BC",
-    ChainName.BASE_SEPOLIA: "0x49f53e41452C74589E85cA1677426Ba426459e85",
+class OP_STACK_SEPOLIA(TypedDict):
+    OPTIMISM_PORTAL: ChecksumAddress
+    DISPUTE_GAME_FACTORY: ChecksumAddress
+
+
+class OP_STACK_L2(TypedDict):
+    L2_TO_L1_MESSAGE_PASSER: ChecksumAddress
+
+
+OP_STACK_SEPOLIA_CONTRACTS: Dict[ChainName, OP_STACK_SEPOLIA] = {
+    ChainName.OP_SEPOLIA: {
+        "OPTIMISM_PORTAL": to_checksum_address(
+            "0x16FC5058F25648194471939DF75CF27A2FDC48BC"
+        ),
+        "DISPUTE_GAME_FACTORY": to_checksum_address(
+            "0x05F9613aDB30026FFd634f38e5C4dFd30a197Fa1"
+        ),
+    },
+    ChainName.BASE_SEPOLIA: {
+        "OPTIMISM_PORTAL": to_checksum_address(
+            "0x49f53e41452C74589E85cA1677426Ba426459e85"
+        ),
+        "DISPUTE_GAME_FACTORY": to_checksum_address(
+            "0xd6E6dBf4F7EA0ac412fD8b65ED297e64BB7a06E1"
+        ),
+    },
 }
+
+OP_STACK_L2_CONTRACTS = {}

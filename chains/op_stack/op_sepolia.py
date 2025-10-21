@@ -2,19 +2,19 @@ from typing import cast
 from eth_account.signers.local import LocalAccount
 from eth_typing import ChecksumAddress
 from web3 import Web3
-from utils import get_web3
-from utils.config import OP_STACK_SEPOLIA_CONTRACTS, LocalAcc
+from utils.providers import get_web3
+from utils.config import OP_STACK_SEPOLIA_CONTRACTS
 from utils.providers import ChainName
 import json
-from web3.types import TxParams, Wei
-from utils.chain import estimate_l2_gas
+from web3.types import TxParams, TxReceipt, Wei
+from utils.chain import estimate_l2_gas, get_account
 
 
 class OP_Sepolia:
     def __init__(self) -> None:
         self.l1p = get_web3(ChainName.ETH_SEPOLIA)
         self.l2p = get_web3(ChainName.OP_SEPOLIA)
-        self.account: LocalAccount = LocalAcc().get_account()
+        self.account: LocalAccount = get_account()
 
     def get_abi(self):
         with open("chains/op_stack/ABI/OptimismPortal2.json", "r") as file:
@@ -24,7 +24,7 @@ class OP_Sepolia:
     def get_l1_contract(self):
         return self.l1p.eth.contract(
             address=Web3.to_checksum_address(
-                OP_STACK_SEPOLIA_CONTRACTS[ChainName.OP_SEPOLIA]
+                OP_STACK_SEPOLIA_CONTRACTS[ChainName.OP_SEPOLIA]["OPTIMISM_PORTAL"]
             ),
             abi=self.get_abi(),
         )
