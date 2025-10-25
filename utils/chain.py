@@ -1,4 +1,5 @@
 import os
+import json
 from dotenv import load_dotenv
 from eth_account.signers.local import LocalAccount
 from eth_typing import ChecksumAddress
@@ -40,3 +41,13 @@ def get_account() -> LocalAccount:
     account: LocalAccount = Account.from_key(pvt_key)
 
     return account
+
+
+def get_abi(path: str):
+    if os.path.isfile(path):
+        with open(path, "r") as file:
+            abi = json.load(file)
+
+        return abi
+    else:
+        raise BaseException(f"File path not found: {path}")

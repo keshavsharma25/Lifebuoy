@@ -20,35 +20,61 @@ class ChainName(StrEnum):
     OP_SEPOLIA = "OP_SEPOLIA"
 
 
+class Contract(TypedDict):
+    address: ChecksumAddress
+    ABI: str
+
+
 # OP STACK CONFIG
 
 
 class OP_STACK_SEPOLIA(TypedDict):
-    OPTIMISM_PORTAL: ChecksumAddress
-    DISPUTE_GAME_FACTORY: ChecksumAddress
+    OPTIMISM_PORTAL: Contract
+    DISPUTE_GAME_FACTORY: Contract
 
 
 class OP_STACK_L2(TypedDict):
-    L2_TO_L1_MESSAGE_PASSER: ChecksumAddress
+    L2_TO_L1_MESSAGE_PASSER: Contract
 
 
 OP_STACK_SEPOLIA_CONTRACTS: Dict[ChainName, OP_STACK_SEPOLIA] = {
     ChainName.OP_SEPOLIA: {
-        "OPTIMISM_PORTAL": to_checksum_address(
-            "0x16FC5058F25648194471939DF75CF27A2FDC48BC"
-        ),
-        "DISPUTE_GAME_FACTORY": to_checksum_address(
-            "0x05F9613aDB30026FFd634f38e5C4dFd30a197Fa1"
-        ),
+        "OPTIMISM_PORTAL": {
+            "address": to_checksum_address(
+                "0x16FC5058F25648194471939DF75CF27A2FDC48BC"
+            ),
+            "ABI": "chains/op_stack/ABI/OptimismPortal2.json",
+        },
+        "DISPUTE_GAME_FACTORY": {
+            "address": to_checksum_address(
+                "0x05F9613aDB30026FFd634f38e5C4dFd30a197Fa1"
+            ),
+            "ABI": "chains/op_stack/ABI/DisputeGameFactory.json",
+        },
     },
     ChainName.BASE_SEPOLIA: {
-        "OPTIMISM_PORTAL": to_checksum_address(
-            "0x49f53e41452C74589E85cA1677426Ba426459e85"
-        ),
-        "DISPUTE_GAME_FACTORY": to_checksum_address(
-            "0xd6E6dBf4F7EA0ac412fD8b65ED297e64BB7a06E1"
-        ),
+        "OPTIMISM_PORTAL": {
+            "address": to_checksum_address(
+                "0x49f53e41452C74589E85cA1677426Ba426459e85"
+            ),
+            "ABI": "chains/op_stack/ABI/OptimismPortal2.json",
+        },
+        "DISPUTE_GAME_FACTORY": {
+            "address": to_checksum_address(
+                "0xd6E6dBf4F7EA0ac412fD8b65ED297e64BB7a06E1"
+            ),
+            "ABI": "chains/op_stack/ABI/DisputeGameFactory.json",
+        },
     },
 }
 
-OP_STACK_L2_CONTRACTS = {}
+OP_STACK_L2_CONTRACTS: Dict[ChainName, OP_STACK_L2] = {
+    ChainName.OP_SEPOLIA: {
+        "L2_TO_L1_MESSAGE_PASSER": {
+            "address": to_checksum_address(
+                "0x4200000000000000000000000000000000000016"
+            ),
+            "ABI": "chains/op_stack/ABI/L2ToL1MessagePasser.json",
+        },
+    },
+}

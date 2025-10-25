@@ -24,7 +24,9 @@ class OP_Sepolia:
     def get_l1_contract(self):
         return self.l1p.eth.contract(
             address=Web3.to_checksum_address(
-                OP_STACK_SEPOLIA_CONTRACTS[ChainName.OP_SEPOLIA]["OPTIMISM_PORTAL"]
+                OP_STACK_SEPOLIA_CONTRACTS[ChainName.OP_SEPOLIA]["OPTIMISM_PORTAL"][
+                    "address"
+                ]
             ),
             abi=self.get_abi(),
         )
