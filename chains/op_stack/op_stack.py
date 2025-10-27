@@ -445,7 +445,7 @@ class OPStack:
             )
 
         assert game_l2_block_number > withdrawal_block_no, (
-            f"Game block `{game_l2_block_number}` must be > Withdrawal block `{withdrawal_block_no}`. ⚠️NOTE: Try again when new dispute game contracts are created that contains is greater than the block that contains your withdrawal txn."
+            f"Game block `{game_l2_block_number}` must be > Withdrawal block `{withdrawal_block_no}`. ⚠️NOTE: Try again when new dispute game contracts created are greater than the block that contains your withdrawal txn."
         )
 
         self._verify_root_claim(withdraw_txn_hash)
