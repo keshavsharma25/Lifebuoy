@@ -21,7 +21,7 @@ from .op_types import (
     WithdrawalParams,
     OutputRootProof,
 )
-from utils.chain import estimate_l2_gas, get_account
+from utils.chain import estimate_l2_gas, get_abi, get_account
 from utils.config import (
     OP_STACK_L2_CONTRACTS,
     OP_STACK_SEPOLIA_CONTRACTS,
@@ -76,7 +76,7 @@ class OPStack:
         info = contracts.get("OPTIMISM_PORTAL")
 
         return self.l1_provider.eth.contract(
-            address=info.get("address"), abi=info.get("ABI")
+            address=info.get("address"), abi=get_abi(info.get("ABI"))
         )
 
     def message_passer_contract(self) -> Contract:
@@ -90,7 +90,7 @@ class OPStack:
 
         return self.l1_provider.eth.contract(
             address=info.get("address"),
-            abi=info.get("ABI"),
+            abi=get_abi(info.get("ABI")),
         )
 
     def dispute_game_factory(self) -> Contract:
@@ -104,7 +104,7 @@ class OPStack:
 
         return self.l1_provider.eth.contract(
             address=info.get("address"),
-            abi=info.get("ABI"),
+            abi=get_abi(info.get("ABI")),
         )
 
     def deposit_transaction(
