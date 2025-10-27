@@ -413,7 +413,8 @@ class OPStack:
 
         computed_claim = self.l1_provider.keccak(
             encode(
-                ["bytes32", "bytes32", "bytes32", "bytes32"], output_root_proof.values()
+                ["bytes32", "bytes32", "bytes32", "bytes32"],
+                list(output_root_proof.values()),
             )
         ).hex()
 
@@ -451,9 +452,9 @@ class OPStack:
 
         prove_withdrawal_transaction = (
             self.portal_contract().functions.proveWithdrawalTransaction(
-                withdrawal_params.values(),
+                list(withdrawal_params.values()),
                 dispute_game_index,
-                output_root_proof.values(),
+                list(output_root_proof.values()),
                 withdrawal_proof,
             )
         )
