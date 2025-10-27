@@ -554,10 +554,20 @@ class OPStack:
             withdrawal_hash, proof_submitter
         ).call()
 
+        if (
+            not proven_withdrawal
+            or len(proven_withdrawal) != 2
+            or proven_withdrawal[0] == to_checksum_address("00" * 20)
+            or proven_withdrawal[1] == 0
+        ):
+            raise ValueError(
+                f"invalid proven withdrawal for withdrawal hash: {withdrawal_hash.to_0x_hex()}"
+            )
+
         response: CheckWithdrawalResponse = {
             "is_withdrawal_enabled": finalized_withdrawals,
-            "fault_dispute_game_address": to_checksum_address(proven_withdrawal.get(0)),
-            "timestamp": proven_withdrawal.get(1),
+            "fault_dispute_game_address": to_checksum_address(proven_withdrawal[0]),
+            "timestamp": proven_withdrawal[1],
         }
 
         return response
