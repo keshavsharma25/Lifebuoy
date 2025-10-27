@@ -142,7 +142,7 @@ class OPStack:
             {
                 "from": self.account.address,
                 "value": Wei(value),
-                "gas": estimated_gas,
+                "gas": int(estimated_gas * 1.3 + 20_000),
                 "nonce": self.l1_provider.eth.get_transaction_count(
                     self.account.address
                 ),
@@ -196,7 +196,7 @@ class OPStack:
             {
                 "from": self.account.address,
                 "value": value,
-                "gas": gas_estimate,
+                "gas": int(gas_estimate * 1.3 + 20_000),
                 "nonce": self.l2_provider.eth.get_transaction_count(
                     self.account.address
                 ),
@@ -475,7 +475,7 @@ class OPStack:
                     self.account.address
                 ),
                 "chainId": self.l1_provider.eth.chain_id,
-                "gas": int(gas_estimate * 1.2),
+                "gas": int(gas_estimate * 1.3 + 20_000),
             }
         )
 
@@ -527,7 +527,7 @@ class OPStack:
                     self.account.address
                 ),
                 "chainId": self.l1_provider.eth.chain_id,
-                "gas": int(gas_estimate * 1.2),
+                "gas": int(gas_estimate * 1.3 + 20_000),
             }
         )
 

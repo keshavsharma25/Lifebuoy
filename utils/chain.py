@@ -27,7 +27,8 @@ def estimate_l2_gas(
             {from_: {"balance": w3.to_wei(1000, "ether")}},
         )
 
-    return int(1.2 * gas_estimate)
+    buffer = int(20_000)
+    return int(1.3 * gas_estimate) + buffer
 
 
 def get_account() -> LocalAccount:
