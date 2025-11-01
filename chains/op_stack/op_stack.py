@@ -211,7 +211,7 @@ class OPStack:
 
         return withdraw_receipt
 
-    def _parse_withdrawal_params(self, txn_hash: HexBytes) -> WithdrawalParams:
+    def parse_withdrawal_params(self, txn_hash: HexBytes) -> WithdrawalParams:
         withdraw_receipt = self.l2_provider.eth.get_transaction_receipt(txn_hash)
 
         if not withdraw_receipt:
@@ -243,7 +243,7 @@ class OPStack:
 
         return parsed
 
-    def _parse_withdrawal_hash(self, txn_hash: HexBytes) -> HexBytes:
+    def parse_withdrawal_hash(self, txn_hash: HexBytes) -> HexBytes:
         withdraw_receipt = self.l2_provider.eth.get_transaction_receipt(txn_hash)
 
         if not withdraw_receipt:
@@ -344,7 +344,7 @@ class OPStack:
         withdrawal_block = self.l2_provider.eth.get_transaction_receipt(
             init_withdraw_tx_hash
         )
-        withdrawal_hash = self._parse_withdrawal_hash(withdraw_txn_hash)
+        withdrawal_hash = self.parse_withdrawal_hash(init_withdraw_tx_hash)
         withdrawal_block_no = withdrawal_block.get("blockNumber")
 
         storage_slot = self._get_storage_slot(withdrawal_hash)
@@ -498,7 +498,7 @@ class OPStack:
         init_withdraw_tx_hash: HexBytes,
         external_prover_address: Optional[ChecksumAddress],
     ) -> TxReceipt:
-        withdrawal_hash = self._parse_withdrawal_hash(withdraw_txn_hash)
+        withdrawal_hash = self.parse_withdrawal_hash(init_withdraw_tx_hash)
 
         assert self.is_withdrawal_enabled(withdrawal_hash), (
             f"Withdrawals yet to be enabled for `withdrawalHash`: {withdrawal_hash}"
