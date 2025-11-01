@@ -31,6 +31,13 @@ def _contract(address: str, abi_path: str) -> ContractType:
         "ABI": abi_path,
     }
 
+
+# GAS ESTIMATE
+
+MULTIPLIER = 1.3
+BUFFER = 20_000
+
+
 # OP STACK CONFIG
 
 ABI_OPTIMISM_PORTAL = "chains/op_stack/ABI/OptimismPortal2.json"

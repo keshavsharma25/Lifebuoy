@@ -1,10 +1,34 @@
 import os
 import json
+from typing import Optional
 from dotenv import load_dotenv
 from eth_account.signers.local import LocalAccount
 from eth_typing import ChecksumAddress
 from web3 import Account, Web3
 from web3.types import Wei
+
+from .config import BUFFER, MULTIPLIER
+
+
+def add_gas_buffer(
+    gas_estimate: int, multiplier: Optional[float] = None, buffer: Optional[int] = None
+) -> int:
+    if multiplier is not None:
+        if multiplier < 1.0:
+            raise ValueError("`multiplier` should be >= 1.0 to ensure sufficient gas")
+        effective_multiplier = multiplier
+    else:
+        effective_multiplier = MULTIPLIER
+
+    # Use provided buffer, fallback to global BUFFER if not provided
+    if buffer is not None:
+        if buffer < 0:
+            raise ValueError("`buffer` must be non-negative")
+        effective_buffer = buffer
+    else:
+        effective_buffer = BUFFER
+
+    return int(gas_estimate * effective_multiplier) + effective_buffer
 
 
 def estimate_l2_gas(
@@ -27,8 +51,7 @@ def estimate_l2_gas(
             {from_: {"balance": w3.to_wei(1000, "ether")}},
         )
 
-    buffer = int(20_000)
-    return int(1.3 * gas_estimate) + buffer
+    return add_gas_buffer(gas_estimate)
 
 
 def get_account() -> LocalAccount:

@@ -21,7 +21,7 @@ from .op_types import (
     WithdrawalParams,
     OutputRootProof,
 )
-from utils.chain import estimate_l2_gas, get_abi, get_account
+from utils.chain import add_gas_buffer, estimate_l2_gas, get_abi, get_account
 from utils.config import (
     OP_STACK_L2_CONTRACTS,
     OP_STACK_ETHEREUM_CONTRACTS,
@@ -142,7 +142,7 @@ class OPStack:
             {
                 "from": self.account.address,
                 "value": Wei(value),
-                "gas": int(estimated_gas * 1.3 + 20_000),
+                "gas": add_gas_buffer(estimated_gas),
                 "nonce": self.l1_provider.eth.get_transaction_count(
                     self.account.address
                 ),
@@ -196,7 +196,7 @@ class OPStack:
             {
                 "from": self.account.address,
                 "value": value,
-                "gas": int(gas_estimate * 1.3 + 20_000),
+                "gas": gas_estimate,
                 "nonce": self.l2_provider.eth.get_transaction_count(
                     self.account.address
                 ),
@@ -476,7 +476,7 @@ class OPStack:
                     self.account.address
                 ),
                 "chainId": self.l1_provider.eth.chain_id,
-                "gas": int(gas_estimate * 1.3 + 20_000),
+                "gas": add_gas_buffer(gas_estimate),
             }
         )
 
@@ -528,7 +528,7 @@ class OPStack:
                     self.account.address
                 ),
                 "chainId": self.l1_provider.eth.chain_id,
-                "gas": int(gas_estimate * 1.3 + 20_000),
+                "gas": add_gas_buffer(gas_estimate),
             }
         )
 
