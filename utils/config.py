@@ -44,7 +44,7 @@ ABI_OPTIMISM_PORTAL = "chains/op_stack/ABI/OptimismPortal2.json"
 ABI_DISPUTE_GAME_FACTORY = "chains/op_stack/ABI/DisputeGameFactory.json"
 ABI_L2_TO_L1_MESSAGE_PASSER = "chains/op_stack/ABI/L2ToL1MessagePasser.json"
 ABI_FAULT_DISPUTE_GAME = "chains/op_stack/ABI/FaultDisputeGame.json"
-
+ABI_ANCHOR_STATE_REGISTRY = "chains/op_stack/ABI/AnchorStateRegistry.json"
 
 OPStackChainName = Literal[ChainName.OP_SEPOLIA, ChainName.BASE_SEPOLIA]
 
@@ -52,6 +52,7 @@ OPStackChainName = Literal[ChainName.OP_SEPOLIA, ChainName.BASE_SEPOLIA]
 class OP_STACK_ETHEREUM(TypedDict):
     OPTIMISM_PORTAL: ContractType
     DISPUTE_GAME_FACTORY: ContractType
+    ANCHOR_STATE_REGISTRY: ContractType
 
 
 class OP_STACK_L2(TypedDict):
@@ -66,6 +67,9 @@ OP_STACK_ETHEREUM_CONTRACTS: Final[Dict[ChainName, OP_STACK_ETHEREUM]] = {
         "DISPUTE_GAME_FACTORY": _contract(
             "0x05F9613aDB30026FFd634f38e5C4dFd30a197Fa1", ABI_DISPUTE_GAME_FACTORY
         ),
+        "ANCHOR_STATE_REGISTRY": _contract(
+            "0xa1Cec548926eb5d69aa3B7B57d371EdBdD03e64b", ABI_ANCHOR_STATE_REGISTRY
+        ),
     },
     ChainName.BASE_SEPOLIA: {
         "OPTIMISM_PORTAL": _contract(
@@ -73,6 +77,9 @@ OP_STACK_ETHEREUM_CONTRACTS: Final[Dict[ChainName, OP_STACK_ETHEREUM]] = {
         ),
         "DISPUTE_GAME_FACTORY": _contract(
             "0xd6E6dBf4F7EA0ac412fD8b65ED297e64BB7a06E1", ABI_DISPUTE_GAME_FACTORY
+        ),
+        "ANCHOR_STATE_REGISTRY": _contract(
+            "0x2fF5cC82dBf333Ea30D8ee462178ab1707315355", ABI_ANCHOR_STATE_REGISTRY
         ),
     },
 }
