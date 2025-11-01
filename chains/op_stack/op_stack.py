@@ -340,9 +340,9 @@ class OPStack:
 
         return storage_slot.hex()
 
-    def _get_proof(self, withdraw_txn_hash: HexBytes) -> MerkleProof:
+    def _get_proof(self, init_withdraw_tx_hash: HexBytes) -> MerkleProof:
         withdrawal_block = self.l2_provider.eth.get_transaction_receipt(
-            withdraw_txn_hash
+            init_withdraw_tx_hash
         )
         withdrawal_hash = self._parse_withdrawal_hash(withdraw_txn_hash)
         withdrawal_block_no = withdrawal_block.get("blockNumber")
@@ -359,7 +359,7 @@ class OPStack:
 
     def _get_output_root_proof(
         self,
-        withdraw_txn_hash: HexBytes,
+        init_withdraw_tx_hash: HexBytes,
         game_id: int | None = None,
     ) -> OutputRootProof:
         l2_game_header = self._get_game_l2_block(game_id)
@@ -367,7 +367,7 @@ class OPStack:
         state_root = l2_game_header.get("stateRoot")
         block_hash = l2_game_header.get("hash")
 
-        proof = self._get_proof(withdraw_txn_hash)
+        proof = self._get_proof(init_withdraw_tx_hash)
         storage_hash = proof.get("storageHash")
 
         if not state_root:
@@ -385,8 +385,8 @@ class OPStack:
 
         return output_root_proof
 
-    def _get_withdrawal_proof(self, withdraw_txn_hash: HexBytes) -> List[bytes]:
-        proof = self._get_proof(withdraw_txn_hash)
+    def _get_withdrawal_proof(self, init_withdraw_tx_hash: HexBytes) -> List[bytes]:
+        proof = self._get_proof(init_withdraw_tx_hash)
 
         if not proof:
             raise ValueError(f"get_proof returned type {type(proof)}")
@@ -406,9 +406,9 @@ class OPStack:
         return withdrawal_proof
 
     def _verify_root_claim(
-        self, withdraw_txn_hash: HexBytes, game_id: int | None = None
+        self, init_withdraw_tx_hash: HexBytes, game_id: int | None = None
     ):
-        output_root_proof = self._get_output_root_proof(withdraw_txn_hash, game_id)
+        output_root_proof = self._get_output_root_proof(init_withdraw_tx_hash, game_id)
         game_result = self._get_latest_game_result(game_id)
 
         computed_claim = self.l1_provider.keccak(
@@ -424,15 +424,17 @@ class OPStack:
             f"Claim doesn't match. `computed_claim:{computed_claim} != root_claim: {root_claim}`"
         )
 
-    def prove_withdrawal_transaction(self, withdraw_txn_hash: HexBytes) -> TxReceipt:
-        withdrawal_params = self._parse_withdrawal_params(withdraw_txn_hash)
+    def prove_withdrawal_transaction(
+        self, init_withdraw_tx_hash: HexBytes
+    ) -> TxReceipt:
+        withdrawal_params = self.parse_withdrawal_params(init_withdraw_tx_hash)
         game_result = self._get_latest_game_result()
         dispute_game_index = game_result.get("index")
-        output_root_proof = self._get_output_root_proof(withdraw_txn_hash)
-        withdrawal_proof = self._get_withdrawal_proof(withdraw_txn_hash)
+        output_root_proof = self._get_output_root_proof(init_withdraw_tx_hash)
+        withdrawal_proof = self._get_withdrawal_proof(init_withdraw_tx_hash)
 
         withdrawal_block = self.l2_provider.eth.get_transaction_receipt(
-            withdraw_txn_hash
+            init_withdraw_tx_hash
         )
         withdrawal_block_no = withdrawal_block.get("blockNumber")
 
@@ -448,7 +450,7 @@ class OPStack:
             f"Game block `{game_l2_block_number}` must be > Withdrawal block `{withdrawal_block_no}`. ⚠️NOTE: Try again when new dispute game contracts created are greater than the block that contains your withdrawal txn."
         )
 
-        self._verify_root_claim(withdraw_txn_hash)
+        self._verify_root_claim(init_withdraw_tx_hash)
 
         prove_withdrawal_transaction = (
             self.portal_contract().functions.proveWithdrawalTransaction(
@@ -493,8 +495,8 @@ class OPStack:
 
     def finalize_withdrawal_transaction_externalproof(
         self,
-        withdraw_txn_hash: HexBytes,
-        external_prover_address: ChecksumAddress,
+        init_withdraw_tx_hash: HexBytes,
+        external_prover_address: Optional[ChecksumAddress],
     ) -> TxReceipt:
         withdrawal_hash = self._parse_withdrawal_hash(withdraw_txn_hash)
 
