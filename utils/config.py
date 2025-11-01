@@ -20,10 +20,16 @@ class ChainName(StrEnum):
     OP_SEPOLIA = "OP_SEPOLIA"
 
 
-class Contract(TypedDict):
+class ContractType(TypedDict):
     address: ChecksumAddress
     ABI: str
 
+
+def _contract(address: str, abi_path: str) -> ContractType:
+    return {
+        "address": to_checksum_address(address),
+        "ABI": abi_path,
+    }
 
 # OP STACK CONFIG
 
@@ -36,23 +42,16 @@ ABI_FAULT_DISPUTE_GAME = "chains/op_stack/ABI/FaultDisputeGame.json"
 OPStackChainName = Literal[ChainName.OP_SEPOLIA, ChainName.BASE_SEPOLIA]
 
 
-class OP_STACK_SEPOLIA(TypedDict):
-    OPTIMISM_PORTAL: Contract
-    DISPUTE_GAME_FACTORY: Contract
+class OP_STACK_ETHEREUM(TypedDict):
+    OPTIMISM_PORTAL: ContractType
+    DISPUTE_GAME_FACTORY: ContractType
 
 
 class OP_STACK_L2(TypedDict):
-    L2_TO_L1_MESSAGE_PASSER: Contract
+    L2_TO_L1_MESSAGE_PASSER: ContractType
 
 
-def _contract(address: str, abi_path: str) -> Contract:
-    return {
-        "address": to_checksum_address(address),
-        "ABI": abi_path,
-    }
-
-
-OP_STACK_SEPOLIA_CONTRACTS: Final[Dict[ChainName, OP_STACK_SEPOLIA]] = {
+OP_STACK_ETHEREUM_CONTRACTS: Final[Dict[ChainName, OP_STACK_ETHEREUM]] = {
     ChainName.OP_SEPOLIA: {
         "OPTIMISM_PORTAL": _contract(
             "0x16FC5058F25648194471939DF75CF27A2FDC48BC", ABI_OPTIMISM_PORTAL

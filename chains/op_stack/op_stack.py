@@ -24,7 +24,7 @@ from .op_types import (
 from utils.chain import estimate_l2_gas, get_abi, get_account
 from utils.config import (
     OP_STACK_L2_CONTRACTS,
-    OP_STACK_SEPOLIA_CONTRACTS,
+    OP_STACK_ETHEREUM_CONTRACTS,
     ChainName,
     OPStackChainName,
 )
@@ -68,7 +68,7 @@ class OPStack:
 
     def portal_contract(self) -> Contract:
         """Get the OptimismPortal2 L1 contract instance."""
-        contracts = OP_STACK_SEPOLIA_CONTRACTS.get(self.chain_name)
+        contracts = OP_STACK_ETHEREUM_CONTRACTS.get(self.chain_name)
 
         if not contracts:
             raise InvalidChainError("Invalid chain intitialized.")
@@ -95,7 +95,7 @@ class OPStack:
 
     def dispute_game_factory(self) -> Contract:
         """Get the Dispute Game Factory L1 contract address"""
-        contracts = OP_STACK_SEPOLIA_CONTRACTS.get(self.chain_name)
+        contracts = OP_STACK_ETHEREUM_CONTRACTS.get(self.chain_name)
 
         if not contracts:
             raise InvalidChainError("Invalid chain intitialized.")
