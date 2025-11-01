@@ -27,7 +27,6 @@ class OutputRootProof(TypedDict):
     latest_block_hash: bytes
 
 
-class CheckWithdrawalResponse(TypedDict):
-    is_withdrawal_enabled: bool
-    fault_dispute_game_address: HexAddress
+class ProvenWithdrawalResponse(TypedDict):
+    fault_dispute_game_address: ChecksumAddress
     timestamp: int
