@@ -237,7 +237,7 @@ class OPStack:
             "sender": event.get("args").get("sender"),
             "target": event.get("args").get("target"),
             "value": event.get("args").get("value"),
-            "gas_limit": event.get("args").get("gasLimit"),
+            "gasLimit": event.get("args").get("gasLimit"),
             "data": event.get("args").get("data"),
         }
 

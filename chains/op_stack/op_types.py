@@ -8,7 +8,7 @@ class WithdrawalParams(TypedDict):
     sender: ChecksumAddress
     target: ChecksumAddress
     value: int
-    gas_limit: int
+    gasLimit: int
     data: bytes
 
 
