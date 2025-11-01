@@ -16,13 +16,14 @@ from web3.eth import Contract
 from eth_abi.abi import encode
 from web3.types import BlockData, MerkleProof, TxParams, TxReceipt, Wei
 from .op_types import (
-    CheckWithdrawalResponse,
+    ProvenWithdrawalResponse,
     GameSearchResult,
     WithdrawalParams,
     OutputRootProof,
 )
 from utils.chain import add_gas_buffer, estimate_l2_gas, get_abi, get_account
 from utils.config import (
+    ABI_FAULT_DISPUTE_GAME,
     OP_STACK_L2_CONTRACTS,
     OP_STACK_ETHEREUM_CONTRACTS,
     ChainName,
@@ -45,6 +46,30 @@ class InvalidChainError(OPStackError):
 
 class InvalidBlockNumber(OPStackError):
     """Raised when an invalid block number is specified"""
+
+    pass
+
+
+class OPPortalUnproven(OPStackError):
+    """Raised when a withdrawal hash is not proven"""
+
+    pass
+
+
+class OPPortalInvalidProofTimstamp(OPStackError):
+    """Raised when the proven timestamp is proven before the dispute game timestamp hence invalid."""
+
+    pass
+
+
+class OPPortalProofNotOldEnough(OPStackError):
+    """Raised when the proof has not passed the deadline of 7 days"""
+
+    pass
+
+
+class OPPortalInvalidRootClaim(OPStackError):
+    """Raised when the root claim is invalid"""
 
     pass
 
@@ -498,17 +523,26 @@ class OPStack:
         init_withdraw_tx_hash: HexBytes,
         external_prover_address: Optional[ChecksumAddress],
     ) -> TxReceipt:
+        if external_prover_address is None:
+            external_prover_address = self.account.address
+
         withdrawal_hash = self.parse_withdrawal_hash(init_withdraw_tx_hash)
 
-        assert self.is_withdrawal_enabled(withdrawal_hash), (
-            f"Withdrawals yet to be enabled for `withdrawalHash`: {withdrawal_hash}"
+        assert not self.is_finalized_withdrawal(withdrawal_hash), (
+            f"Associated withdrawal hash ({withdrawal_hash.to_0x_hex()}) has already been finalized"
         )
 
-        withdrawal_params = self._parse_withdrawal_params(withdraw_txn_hash)
+        assert self.is_withdrawal_enabled(withdrawal_hash, external_prover_address), (
+            f"Withdrawals yet to be enabled for `withdrawalHash`: {withdrawal_hash.to_0x_hex()}"
+        )
+
+        portal = self.portal_contract()
+
+        withdrawal_params = self.parse_withdrawal_params(init_withdraw_tx_hash)
 
         finalize_withdrawal_transaction = (
-            self.portal_contract().functions.finalizeWithdrawalTransactionExternalProof(
-                withdrawal_params,
+            portal.functions.finalizeWithdrawalTransactionExternalProof(
+                tuple(withdrawal_params.values()),
                 external_prover_address,
             )
         )
@@ -545,41 +579,93 @@ class OPStack:
         except Exception as e:
             raise OPStackError(f"Prove withdrawal failed: {e}")
 
-    def check_withdrawal_status(
-        self, withdrawal_hash: HexBytes, proof_submitter: ChecksumAddress
-    ) -> CheckWithdrawalResponse:
+    def get_proven_withdrawal_info(
+        self,
+        withdrawal_hash: HexBytes,
+        external_prover_address: ChecksumAddress,
+    ) -> ProvenWithdrawalResponse:
         portal = self.portal_contract()
 
-        finalized_withdrawals: bool = portal.functions.finalizedWithdrawals(
-            withdrawal_hash
-        ).call()
         proven_withdrawal = portal.functions.provenWithdrawals(
-            withdrawal_hash, proof_submitter
+            withdrawal_hash, external_prover_address
         ).call()
 
-        if (
-            not proven_withdrawal
-            or len(proven_withdrawal) != 2
-            or proven_withdrawal[0] == to_checksum_address("00" * 20)
-            or proven_withdrawal[1] == 0
-        ):
-            raise ValueError(
-                f"invalid proven withdrawal for withdrawal hash: {withdrawal_hash.to_0x_hex()}"
-            )
-
-        response: CheckWithdrawalResponse = {
-            "is_withdrawal_enabled": finalized_withdrawals,
+        response: ProvenWithdrawalResponse = {
             "fault_dispute_game_address": to_checksum_address(proven_withdrawal[0]),
             "timestamp": proven_withdrawal[1],
         }
 
         return response
 
-    def is_withdrawal_enabled(self, withdrawal_hash: HexBytes) -> bool:
+    def is_withdrawal_enabled(
+        self,
+        withdrawal_hash: HexBytes,
+        external_prover_address: ChecksumAddress,
+    ) -> bool:
         portal = self.portal_contract()
 
-        finalized_withdrawals = portal.functions.finalizedWithdrawals(
-            withdrawal_hash
-        ).call()
+        withdrawal_info = self.get_proven_withdrawal_info(
+            withdrawal_hash, external_prover_address
+        )
 
-        return finalized_withdrawals
+        dispute_game_address = withdrawal_info["fault_dispute_game_address"]
+        timestamp = withdrawal_info["timestamp"]
+
+        if timestamp == 0:
+            raise OPPortalUnproven(
+                f"Timestamp is {timestamp} for the provided {withdrawal_hash.to_0x_hex()}"
+            )
+
+        dispute_game_contract = self.l1_provider.eth.contract(
+            dispute_game_address, abi=get_abi(ABI_FAULT_DISPUTE_GAME)
+        )
+        dispute_created_timestamp = dispute_game_contract.functions.createdAt().call()
+
+        proof_maturity_delay_seconds = (
+            portal.functions.proofMaturityDelaySeconds().call()
+        )
+
+        latest_block = self.l1_provider.eth.get_block("latest")
+
+        anchor_state_registry_info = OP_STACK_ETHEREUM_CONTRACTS[self.chain_name].get(
+            "ANCHOR_STATE_REGISTRY"
+        )
+
+        anchor_state_registry_contract = self.l1_provider.eth.contract(
+            anchor_state_registry_info["address"],
+            abi=get_abi(anchor_state_registry_info["ABI"]),
+        )
+
+        is_game_claim_valid = anchor_state_registry_contract.functions.isGameClaimValid(
+            dispute_game_address
+        )
+
+        if timestamp <= dispute_created_timestamp:
+            raise OPPortalInvalidProofTimstamp(
+                f"Proof Timstamp:{timestamp} > asscociated Dispute Game Timstamp: {dispute_created_timestamp}"
+            )
+
+        if latest_block is None:
+            raise ValueError("Can't fetch latest block")
+
+        latest_block_timestamp = latest_block.get("timestamp")
+
+        if latest_block_timestamp is None:
+            raise ValueError("Can't fetch timestamp for latest block")
+
+        if latest_block_timestamp - timestamp <= proof_maturity_delay_seconds:
+            raise OPPortalProofNotOldEnough(
+                f"The deadline hasn't reached yet. Check again after timestamp: {timestamp + proof_maturity_delay_seconds}"
+            )
+
+        if not is_game_claim_valid:
+            raise OPPortalInvalidRootClaim(
+                "The root claim initially submitted has been deemed invalid"
+            )
+
+        return True
+
+    def is_finalized_withdrawal(self, withdrawal_hash: HexBytes):
+        portal = self.portal_contract()
+
+        return portal.functions.finalizedWithdrawals(withdrawal_hash).call()
