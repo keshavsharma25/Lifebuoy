@@ -12,6 +12,7 @@ from eth_utils.address import to_checksum_address
 from eth_account.signers.local import LocalAccount
 from eth_typing import ChecksumAddress
 from hexbytes import HexBytes
+from web3 import Web3
 from web3.eth import Contract
 from eth_abi.abi import encode
 from web3.types import BlockData, MerkleProof, TxParams, TxReceipt, Wei
@@ -140,7 +141,7 @@ class OPStack:
         data: bytes,
     ) -> TxReceipt:
         contract = self.portal_contract()
-        value = self.l1_provider.to_wei(value, "ether")
+        value = Web3.to_wei(value, "ether")
 
         gas_limit = estimate_l2_gas(
             self.l2_provider, to, self.account.address, value, data
@@ -201,7 +202,7 @@ class OPStack:
     ):
         mp_contract = self.message_passer_contract()
 
-        value = self.l2_provider.to_wei(withdraw_value, "ether")
+        value = Web3.to_wei(withdraw_value, "ether")
 
         msg_passer_txn = mp_contract.functions.initiateWithdrawal(
             target_address,
