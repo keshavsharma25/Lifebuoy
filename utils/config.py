@@ -97,3 +97,57 @@ OP_STACK_L2_CONTRACTS: Dict[ChainName, OP_STACK_L2] = {
         )
     },
 }
+
+
+# NITRO CONFIG
+
+ABI_DELAYED_INBOX = "chains/nitro_stack/ABI/delayed_inbox.json"
+ABI_NODE_INTERFACE = "chains/nitro_stack/ABI/node_interface.json"
+ABI_ARB_BRIDGE = "chains/nitro_stack/ABI/bridge.json"
+ABI_ARB_RETRYABLE_TX = "chains/nitro_stack/ABI/arb_retryable_tx_precompile.json"
+ABI_SEQUENCER_INBOX = "chains/nitro_stack/ABI/sequencer_inbox.json"
+
+NitroStackChainName = Literal[ChainName.ARB_SEPOLIA]
+
+
+class NITRO_STACK_ETHEREUM(TypedDict):
+    DELAYED_INBOX: ContractType
+    BRIDGE: ContractType
+    SEQUENCER_INBOX: ContractType
+
+
+class NITRO_STACK_L2(TypedDict):
+    NODE_INTERFACE: ContractType
+    ARB_RETRYABLE_TX: ContractType
+
+
+NITRO_STACK_ETHEREUM_CONTRACTS: Final[Dict[ChainName, NITRO_STACK_ETHEREUM]] = {
+    ChainName.ARB_SEPOLIA: {
+        "DELAYED_INBOX": _contract(
+            "0xaAe29B0366299461418F5324a79Afc425BE5ae21",
+            ABI_DELAYED_INBOX,
+        ),
+        "BRIDGE": _contract(
+            "0x38f918D0E9F1b721EDaA41302E399fa1B79333a9",
+            ABI_ARB_BRIDGE,
+        ),
+        "SEQUENCER_INBOX": _contract(
+            "0x6c97864CE4bEf387dE0b3310A44230f7E3F1be0D",
+            ABI_SEQUENCER_INBOX,
+        ),
+    }
+}
+
+
+NITRO_STACK_L2_CONTRACTS: Final[Dict[ChainName, NITRO_STACK_L2]] = {
+    ChainName.ARB_SEPOLIA: {
+        "NODE_INTERFACE": _contract(
+            "0x00000000000000000000000000000000000000C8",
+            ABI_NODE_INTERFACE,
+        ),
+        "ARB_RETRYABLE_TX": _contract(
+            "0x000000000000000000000000000000000000006E",
+            ABI_ARB_RETRYABLE_TX,
+        ),
+    }
+}
