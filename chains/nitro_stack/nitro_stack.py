@@ -337,8 +337,9 @@ class NitroStack:
                 if not topics:
                     continue
                 log_topic = topics[0]
+                log_topic_hex = HexBytes(log_topic).to_0x_hex()
 
-                if log_topic == REDEEM_SCHEDULED_HEX:
+                if log_topic_hex == REDEEM_SCHEDULED_HEX:
                     if len(topics) >= 3:
                         return topics[2]
 
