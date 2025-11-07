@@ -68,6 +68,37 @@ class NitroStackRetryableTicketError(NitroStackError):
         return NitroStackError(str(error), original_error=error)
 
 
+class NitroStackForceInclusionError(NitroStackError):
+    """Raised in case force inclusion fails and throws a custom contract error."""
+
+    DELAYED_BACKWARDS = "DelayedBackwards()"
+    INCLUSION_TOO_SOON = "ForceIncludeBlockTooSoon()"
+    INCORRECT_MSG_PRE_IMAGE = "IncorrectMessagePreimage()"
+
+    @classmethod
+    def from_contract_error(cls, error):
+        def get_error_selector(sig: str) -> str:
+            hash_bytes = Web3.keccak(text=sig)
+            return "0x" + hash_bytes.hex()[:8]
+
+        errors = [
+            cls.DELAYED_BACKWARDS,
+            cls.INCLUSION_TOO_SOON,
+            cls.INCORRECT_MSG_PRE_IMAGE,
+        ]
+
+        error_dict = {get_error_selector(error): error for error in errors}
+
+        if type(error) is ContractCustomError:
+            error_selector = error.args[0]
+            if error_selector in error_dict:
+                error_name = error_dict[error_selector]
+                message = f"`{error_name}` error occurred."
+                return NitroStackError(message, original_error=error)
+
+        return NitroStackError(str(error), original_error=error)
+
+
 class NitroStack:
     def __init__(
         self, chain_name: NitroStackChainName, account: Optional[LocalAccount] = None
@@ -539,4 +570,4 @@ class NitroStack:
             return redeem_receipt
 
         except Exception as e:
-            NitroStackError(str(e), e)
+            raise NitroStackForceInclusionError.from_contract_error(e)
