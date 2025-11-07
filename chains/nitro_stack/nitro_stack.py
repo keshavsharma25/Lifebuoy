@@ -39,6 +39,14 @@ class RetryableTicketParams(TypedDict):
     data: HexBytes
 
 
+class TicketStatus(Enum):
+    NOT_YET_CREATED = 1
+    CREATION_FAILED = 2
+    FUNDS_DEPOSITED_ON_CHILD = 3
+    REDEEMED = 4
+    EXPIRED = 5
+
+
 class NitroStackError(Exception):
     """Base Exception for Nitro Stack operations."""
 
@@ -279,8 +287,88 @@ class NitroStack:
         except Exception as e:
             raise NitroStackError(f"`createRetryableTicket` transaction failed: {e}")
 
-    def get_status(self, txn_hash):
-        pass
+    def get_status(self, l1_txn_hash: HexBytes) -> TicketStatus:
+        tx_receipt = self.l1_provider.eth.get_transaction_receipt(l1_txn_hash)
+
+        receipt_status = tx_receipt["status"]
+
+        receipt_block = tx_receipt["blockNumber"]
+        current_block = self.l1_provider.eth.block_number
+
+        TXN_SUCCESSFUL = 1
+
+        if receipt_status != TXN_SUCCESSFUL:
+            return TicketStatus.CREATION_FAILED
+
+        confirmations = current_block - receipt_block
+
+        # 32 slots to finality
+        MINIMUM_CONFIRMATIONS = 64
+
+        if confirmations <= MINIMUM_CONFIRMATIONS:
+            return TicketStatus.NOT_YET_CREATED
+
+        retryable_ticket_hash = self.get_retryable_ticket_id(l1_txn_hash)
+
+        try:
+            retryable_ticket_receipt = self.l2_provider.eth.get_transaction_receipt(
+                retryable_ticket_hash
+            )
+        except Exception:
+            return TicketStatus.NOT_YET_CREATED
+
+        status = retryable_ticket_receipt["status"]
+        if status != TXN_SUCCESSFUL:
+            return TicketStatus.CREATION_FAILED
+
+        def get_auto_redeem_txn() -> HexBytes | None:
+            REDEEM_SCHEDULED_SIGNATURE = (
+                "RedeemScheduled(bytes32,bytes32,uint64,uint64,address,uint256,uint256)"
+            )
+            REDEEM_SCHEDULED_HEX = HexBytes(
+                Web3.keccak(text=REDEEM_SCHEDULED_SIGNATURE)
+            ).to_0x_hex()
+
+            logs = retryable_ticket_receipt.get("logs", [])
+
+            for log in logs:
+                topics = log.get("topics", [])
+
+                if not topics:
+                    continue
+                log_topic = topics[0]
+
+                if log_topic == REDEEM_SCHEDULED_HEX:
+                    if len(topics) >= 3:
+                        return topics[2]
+
+            return None
+
+        auto_redeem_txn = get_auto_redeem_txn()
+
+        if auto_redeem_txn:
+            try:
+                redeem_receipt = self.l2_provider.eth.get_transaction_receipt(
+                    auto_redeem_txn
+                )
+                if redeem_receipt["status"] == TXN_SUCCESSFUL:
+                    return TicketStatus.REDEEMED
+            except Exception:
+                pass
+
+        try:
+            timeout = self.get_timeout_retryable_ticket(retryable_ticket_hash)
+
+            if timeout > 0:
+                return TicketStatus.FUNDS_DEPOSITED_ON_CHILD
+        except Exception:
+            pass
+
+        # just throw an error in the end telling that either the txn has been redeemed or expired before redemption.
+        #  TODO: add a way to effectively differentiate redeemed & expired tickets
+
+        # The reason being it has either been **redeemed** or have **expired** its default validity a.k.a. RetryableLifetime (7 days).
+        return TicketStatus.EXPIRED
 
     @staticmethod
     def decode_inbox_message_delivered_data(
