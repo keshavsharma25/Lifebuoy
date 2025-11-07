@@ -148,7 +148,7 @@ class NitroStack:
 
         return contract
 
-    def depositEth(self, value: float):
+    def depositEth(self, value: float) -> TxReceipt:
         delayed_inbox = self._get_delayed_inbox_contract()
 
         prep_txn = delayed_inbox.functions.depositEth()
@@ -516,7 +516,7 @@ class NitroStack:
         except Exception as e:
             raise NitroStackRetryableTicketError.from_contract_error(e)
 
-    def perform_force_inclusion(self, l1_txn_hash: HexBytes):
+    def perform_force_inclusion(self, l1_txn_hash: HexBytes) -> TxReceipt:
         rt_receipt = self.l1_provider.eth.get_transaction_receipt(l1_txn_hash)
 
         bridge = self._get_bridge_contract()
