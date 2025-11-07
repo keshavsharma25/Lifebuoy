@@ -1,9 +1,8 @@
 """"""
 
-from pprint import pprint
+from enum import Enum
 from typing import List, Optional, Tuple, TypedDict, cast
 from web3 import Web3
-from web3._utils.encoding import to_json
 from web3.constants import ADDRESS_ZERO
 from eth_account.signers.local import LocalAccount
 from eth_typing import ChecksumAddress
@@ -60,7 +59,7 @@ class NitroStackRetryableTicketError(NitroStackError):
     def from_contract_error(cls, error):
         if type(error) is ContractCustomError:
             error_selector = error.args[0]
-            if error_selector == NitroStackRetryableTicketError.NO_TICKET_SELECTOR:
+            if error_selector == cls.NO_TICKET_SELECTOR:
                 raise NitroStackRetryableTicketError(
                     "`NoTicketWithID()` from ArbRetryableTx precompile! Either doesn't exist, expired or redeemed already.",
                     original_error=error,
@@ -488,7 +487,6 @@ class NitroStack:
 
     def perform_force_inclusion(self, l1_txn_hash: HexBytes):
         rt_receipt = self.l1_provider.eth.get_transaction_receipt(l1_txn_hash)
-        pprint(to_json(cast(dict, rt_receipt)["blockNumber"]), indent=4)
 
         bridge = self._get_bridge_contract()
         sequencer_inbox = self._get_sequencer_inbox()
