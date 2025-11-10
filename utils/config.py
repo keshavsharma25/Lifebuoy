@@ -106,6 +106,8 @@ ABI_NODE_INTERFACE = "chains/nitro_stack/ABI/node_interface.json"
 ABI_ARB_BRIDGE = "chains/nitro_stack/ABI/bridge.json"
 ABI_ARB_RETRYABLE_TX = "chains/nitro_stack/ABI/arb_retryable_tx_precompile.json"
 ABI_SEQUENCER_INBOX = "chains/nitro_stack/ABI/sequencer_inbox.json"
+ABI_ARB_SYS = "chains/nitro_stack/ABI/arb_sys_precompile.json"
+ABI_OUTBOX = "chains/nitro_stack/ABI/outbox.json"
 
 NitroStackChainName = Literal[ChainName.ARB_SEPOLIA]
 
@@ -114,11 +116,13 @@ class NITRO_STACK_ETHEREUM(TypedDict):
     DELAYED_INBOX: ContractType
     BRIDGE: ContractType
     SEQUENCER_INBOX: ContractType
+    OUTBOX: ContractType
 
 
 class NITRO_STACK_L2(TypedDict):
     NODE_INTERFACE: ContractType
     ARB_RETRYABLE_TX: ContractType
+    ARB_SYS: ContractType
 
 
 NITRO_STACK_ETHEREUM_CONTRACTS: Final[Dict[ChainName, NITRO_STACK_ETHEREUM]] = {
@@ -135,6 +139,10 @@ NITRO_STACK_ETHEREUM_CONTRACTS: Final[Dict[ChainName, NITRO_STACK_ETHEREUM]] = {
             "0x6c97864CE4bEf387dE0b3310A44230f7E3F1be0D",
             ABI_SEQUENCER_INBOX,
         ),
+        "OUTBOX": _contract(
+            "0x65f07C7D521164a4d5DaC6eB8Fac8DA067A3B78F",
+            ABI_OUTBOX,
+        ),
     }
 }
 
@@ -148,6 +156,10 @@ NITRO_STACK_L2_CONTRACTS: Final[Dict[ChainName, NITRO_STACK_L2]] = {
         "ARB_RETRYABLE_TX": _contract(
             "0x000000000000000000000000000000000000006E",
             ABI_ARB_RETRYABLE_TX,
+        ),
+        "ARB_SYS": _contract(
+            "0x0000000000000000000000000000000000000064",
+            ABI_ARB_SYS,
         ),
     }
 }
