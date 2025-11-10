@@ -1,7 +1,6 @@
 """"""
 
-from enum import Enum
-from typing import List, Optional, Tuple, TypedDict, cast
+from typing import List, Optional, Tuple, cast
 from web3 import Web3
 from web3.constants import ADDRESS_ZERO
 from eth_account.signers.local import LocalAccount
@@ -9,9 +8,14 @@ from eth_typing import ChecksumAddress
 from hexbytes import HexBytes
 from web3.eth import Contract
 from web3.logs import DISCARD
-from web3.exceptions import ContractCustomError
 from web3.types import TxParams, TxReceipt, Wei
 import rlp
+from .types import (
+    L2ToL1TxArgs,
+    OutboxProofResponse,
+    RetryableTicketParams,
+    TicketStatus,
+)
 
 from .gas_estimator import (
     GasEstimator,
@@ -26,25 +30,6 @@ from utils.config import (
 )
 from utils.providers import get_web3
 from eth_abi import abi
-
-
-class RetryableTicketParams(TypedDict):
-    to: ChecksumAddress
-    l2CallValue: int
-    maxSubmissionCost: int
-    excessFeeRefundAddress: ChecksumAddress
-    callValueRefundAddress: ChecksumAddress
-    gasLimit: int
-    maxFeePerGas: int
-    data: HexBytes
-
-
-class TicketStatus(Enum):
-    NOT_YET_CREATED = 1
-    CREATION_FAILED = 2
-    FUNDS_DEPOSITED_ON_CHILD = 3
-    REDEEMED = 4
-    EXPIRED = 5
 
 
 class NitroStackError(Exception):

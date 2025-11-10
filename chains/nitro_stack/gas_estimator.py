@@ -1,31 +1,14 @@
-from typing import TypedDict
-from eth_typing import ChecksumAddress
 from hexbytes import HexBytes
 from web3 import Web3
 from web3.eth import Contract
-from web3.types import Wei, BlockData
+from web3.types import BlockData
 from utils.chain import add_gas_buffer, get_abi
 from utils.config import (
     NITRO_STACK_L2_CONTRACTS,
     NITRO_STACK_ETHEREUM_CONTRACTS,
     ChainName,
 )
-
-
-class EstimateRetryableTicketParams(TypedDict):
-    sender: ChecksumAddress
-    to: ChecksumAddress
-    l2_call_value: Wei
-    excess_fee_refund_address: ChecksumAddress
-    call_value_refund_address: ChecksumAddress
-    data: HexBytes
-
-
-class GasRelatedResponse(TypedDict):
-    max_fee_per_gas: int
-    l2_gas_limit: int
-    l1_submission_cost: int
-    deposit: int
+from .types import GasRelatedResponse, EstimateRetryableTicketParams
 
 
 class GasEstimator:
