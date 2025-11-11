@@ -633,3 +633,85 @@ class NitroStack:
 
         except Exception as e:
             raise NitroStackForceInclusionError.from_contract_error(sequencer_inbox, e)
+
+    def withdraw_eth(
+        self,
+        value_ether: float,
+        dest_address: ChecksumAddress,
+    ) -> TxReceipt:
+        arb_sys = self._get_arb_sys_precompile()
+
+        value_wei = Web3.to_wei(value_ether, "ether")
+
+        withdraw_eth = arb_sys.functions.withdrawEth(dest_address)
+
+        try:
+            gas_estimate = withdraw_eth.estimate_gas(
+                {
+                    "from": self.account.address,
+                    "value": value_wei,
+                }
+            )
+
+            txn_payload = withdraw_eth.build_transaction(
+                {
+                    "from": self.account.address,
+                    "value": value_wei,
+                    "gas": add_gas_buffer(gas_estimate),
+                    "nonce": self.l2_provider.eth.get_transaction_count(
+                        self.account.address
+                    ),
+                }
+            )
+
+            signed_txn = self.account.sign_transaction(cast(dict, txn_payload))
+            txn_hash = self.l2_provider.eth.send_raw_transaction(
+                signed_txn.raw_transaction
+            )
+
+            receipt = self.l2_provider.eth.wait_for_transaction_receipt(txn_hash)
+
+            return receipt
+
+        except Exception as e:
+            raise NitroStackError(str(e), e)
+
+    def send_tx_to_l1(
+        self,
+        value_ether: float,
+        dest_address: ChecksumAddress,
+        data: HexBytes,
+    ) -> TxReceipt:
+        arb_sys = self._get_arb_sys_precompile()
+
+        value_wei = Web3.to_wei(value_ether, "ether")
+
+        send_tx_to_l1 = arb_sys.functions.sendTxToL1(dest_address, data)
+
+        try:
+            gas_estimate = send_tx_to_l1.estimate_gas(
+                {
+                    "from": self.account.address,
+                    "value": value_wei,
+                }
+            )
+
+            txn_payload = send_tx_to_l1.build_transaction(
+                {
+                    "from": self.account.address,
+                    "value": value_wei,
+                    "gas": add_gas_buffer(gas_estimate),
+                }
+            )
+
+            signed_txn = self.account.sign_transaction(cast(dict, txn_payload))
+            txn_hash = self.l1_provider.eth.send_raw_transaction(
+                signed_txn.raw_transaction
+            )
+
+            receipt = self.l2_provider.eth.wait_for_transaction_receipt(txn_hash)
+
+            return receipt
+
+        except Exception as e:
+            raise NitroStackError(str(e), e)
