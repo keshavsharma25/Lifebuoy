@@ -1,10 +1,13 @@
 import os
 import json
-from typing import Optional
+from typing import NamedTuple, Optional, Sequence
 from dotenv import load_dotenv
 from eth_account.signers.local import LocalAccount
-from eth_typing import ChecksumAddress
+from eth_typing import ABIComponent, ChecksumAddress
+from hexbytes import HexBytes
 from web3 import Account, Web3
+from web3.eth import Contract
+from web3.exceptions import ContractCustomError
 from web3.types import Wei
 
 from .config import BUFFER, MULTIPLIER
@@ -75,3 +78,82 @@ def get_abi(path: str) -> str:
         return abi
     else:
         raise BaseException(f"File path not found: {path}")
+
+
+class ContractErrorInfo(NamedTuple):
+    """
+    Named tuple containing contract error information.
+
+    Attributes:
+        name: Error name (e.g., "NoTicketWithID")
+        signature: Full error signature (e.g., "NoTicketWithID()")
+        inputs: List of input parameters from ABI
+        selector: 4-byte error selector hex string (e.g., "0x80698456")
+    """
+
+    name: str
+    signature: str
+    inputs: Sequence[ABIComponent]
+    selector: str
+
+
+def get_contract_error_info(
+    contract: Contract, error: Exception
+) -> Optional[ContractErrorInfo]:
+    """
+    Match a contract error to its ABI definition and return error information.
+
+    Args:
+        contract: Web3 Contract instance containing ABI
+        error: Exception raised by contract call
+
+    Returns:
+        ContractErrorInfo named tuple if matched, None otherwise
+
+    Example:
+        >>> try:
+        >>>     contract.functions.redeem(ticket_id).call()
+        >>> except Exception as e:
+        >>>     error_info = get_contract_error_info(contract, e)
+        >>>     if error_info:
+        >>>         print(f"Error: {error_info.name}")
+        >>>         print(f"Signature: {error_info.signature}")
+        >>>         print(f"Selector: {error_info.selector}")
+    """
+    if not isinstance(error, ContractCustomError):
+        return None
+
+    error_selector = error.args[0]
+    print(error_selector)
+
+    for item in contract.abi:
+        if item.get("type") != "error":
+            continue
+
+        error_name = item.get("name")
+        if error_name is None:
+            continue
+
+        inputs = item.get("inputs", [])
+
+        input_types = []
+        for inp in inputs:
+            inp_type = inp.get("type")
+            if inp_type is None:
+                continue
+            input_types.append(inp_type)
+
+        signature = f"{error_name}({','.join(input_types)})"
+
+        hash_bytes = Web3.keccak(text=signature)
+        selector = HexBytes(hash_bytes[:4]).to_0x_hex()
+
+        if selector == error_selector:
+            return ContractErrorInfo(
+                name=error_name,
+                signature=signature,
+                inputs=inputs,
+                selector=selector,
+            )
+
+    return None
