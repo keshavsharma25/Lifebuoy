@@ -488,7 +488,9 @@ class NitroStack:
 
             return redeem_receipt
         except Exception as e:
-            raise NitroStackRetryableTicketError.from_contract_error(e)
+            raise NitroStackRetryableTicketError.from_contract_error(
+                arb_retryable_tx, e
+            )
 
     def cancel_retryable_ticket(self, rt_txn_hash: HexBytes) -> TxReceipt:
         arb_retryable_tx = self._get_arb_retryable_tx_precompile()
@@ -517,7 +519,9 @@ class NitroStack:
 
             return redeem_receipt
         except Exception as e:
-            raise NitroStackRetryableTicketError.from_contract_error(e)
+            raise NitroStackRetryableTicketError.from_contract_error(
+                arb_retryable_tx, e
+            )
 
     def keep_alive_retryable_ticket(self, rt_txn_hash: HexBytes) -> TxReceipt:
         arb_retryable_tx = self._get_arb_retryable_tx_precompile()
@@ -546,7 +550,9 @@ class NitroStack:
 
             return redeem_receipt
         except Exception as e:
-            raise NitroStackRetryableTicketError.from_contract_error(e)
+            raise NitroStackRetryableTicketError.from_contract_error(
+                arb_retryable_tx, e
+            )
 
     def get_timeout_retryable_ticket(self, rt_txn_hash: HexBytes) -> int:
         arb_retryable_tx = self._get_arb_retryable_tx_precompile()
@@ -555,7 +561,9 @@ class NitroStack:
             timeout = arb_retryable_tx.functions.getTimeout(rt_txn_hash).call()
             return timeout
         except Exception as e:
-            raise NitroStackRetryableTicketError.from_contract_error(e)
+            raise NitroStackRetryableTicketError.from_contract_error(
+                arb_retryable_tx, e
+            )
 
     def get_beneficiary_retryable_ticket(
         self, rt_txn_hash: HexBytes
@@ -566,7 +574,9 @@ class NitroStack:
             beneficiary = arb_retryable_tx.functions.getBeneficiary(rt_txn_hash).call()
             return Web3.to_checksum_address(beneficiary)
         except Exception as e:
-            raise NitroStackRetryableTicketError.from_contract_error(e)
+            raise NitroStackRetryableTicketError.from_contract_error(
+                arb_retryable_tx, e
+            )
 
     def perform_force_inclusion(self, l1_txn_hash: HexBytes) -> TxReceipt:
         rt_receipt = self.l1_provider.eth.get_transaction_receipt(l1_txn_hash)
@@ -622,4 +632,4 @@ class NitroStack:
             return redeem_receipt
 
         except Exception as e:
-            raise NitroStackForceInclusionError.from_contract_error(e)
+            raise NitroStackForceInclusionError.from_contract_error(sequencer_inbox, e)
