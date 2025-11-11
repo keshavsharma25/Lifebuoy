@@ -449,9 +449,7 @@ class NitroStack:
         message_number: int = inbox_msg_delivered_event[0]["args"]["messageNum"]
         data: HexBytes = HexBytes(inbox_msg_delivered_event[0]["args"]["data"])
 
-        (metadata, calldata_length, call_value) = (
-            self.decode_inbox_message_delivered_data(data)
-        )
+        (metadata, _, call_value) = self.decode_inbox_message_delivered_data(data)
 
         retryable_ticket_id = self.calculate_retryable_id(
             self.l2_provider.eth.chain_id,
