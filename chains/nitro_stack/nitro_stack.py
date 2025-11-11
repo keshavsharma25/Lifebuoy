@@ -87,6 +87,40 @@ class NitroStack:
 
         return contract
 
+    def _get_arb_sys_precompile(self) -> Contract:
+        contracts = NITRO_STACK_L2_CONTRACTS[self.chain_name]
+        info = contracts.get("ARB_SYS")
+
+        contract = self.l2_provider.eth.contract(
+            info["address"], abi=get_abi(info["ABI"])
+        )
+
+        return contract
+
+    def _get_node_interface(self) -> Contract:
+        contracts = NITRO_STACK_L2_CONTRACTS[self.chain_name]
+
+        info = contracts.get("NODE_INTERFACE")
+
+        contract = self.l2_provider.eth.contract(
+            info["address"],
+            abi=get_abi(info["ABI"]),
+        )
+
+        return contract
+
+    def _get_outbox_contract(self) -> Contract:
+        contracts = NITRO_STACK_ETHEREUM_CONTRACTS[self.chain_name]
+
+        info = contracts.get("OUTBOX")
+
+        contract = self.l1_provider.eth.contract(
+            info["address"],
+            abi=get_abi(info["ABI"]),
+        )
+
+        return contract
+
     def depositEth(self, value: float) -> TxReceipt:
         delayed_inbox = self._get_delayed_inbox_contract()
 
