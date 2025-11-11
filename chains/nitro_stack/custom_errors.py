@@ -46,3 +46,36 @@ class NitroStackForceInclusionError(NitroStackError):
             )
 
         return NitroStackError(str(error), original_error=error)
+
+
+class NitroStackOutboxError(NitroStackError):
+    """Raised in case of interacting with Outbox contract functions (example - executeTransaction)"""
+
+    # Reason is error types don't exist in the provided ABI
+    # https://github.com/OffchainLabs/nitro-contracts/blob/0b8c04e8f5f66fe6678a4f53aa15f23da417260e/src/libraries/Error.sol#L122-L142
+    OUTBOX_ERROR_SIGNATURES = (
+        "ProofTooLong(uint256)",
+        "PathNotMinimal(uint256,uint256)",
+        "UnknownRoot(bytes32)",
+        "AlreadySpent(uint256)",
+    )
+
+    @classmethod
+    def from_contract_error_info(cls, error: Exception):
+        if isinstance(error, ContractCustomError):
+            received_error_selector = HexBytes(error.args[0])
+
+            if len(received_error_selector) > 4:
+                received_error_selector = received_error_selector[:4]
+
+            error_selectors = {
+                HexBytes(Web3.keccak(text=sign))[:4]: sign
+                for sign in cls.OUTBOX_ERROR_SIGNATURES
+            }
+            if received_error_selector in error_selectors:
+                return NitroStackOutboxError(
+                    f"{error_selectors[received_error_selector]} error occurred.",
+                    original_error=error,
+                )
+
+        return NitroStackError(str(error), error)

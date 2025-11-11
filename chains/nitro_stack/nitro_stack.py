@@ -715,3 +715,90 @@ class NitroStack:
 
         except Exception as e:
             raise NitroStackError(str(e), e)
+
+    def parse_l2_to_l1_tx_event(self, l2_txn_hash: HexBytes) -> L2ToL1TxArgs:
+        arb_sys = self._get_arb_sys_precompile()
+        receipt = self.l2_provider.eth.get_transaction_receipt(l2_txn_hash)
+
+        parsed_logs = arb_sys.events.L2ToL1Tx.process_receipt(receipt, errors=DISCARD)
+
+        if not parsed_logs:
+            raise NitroStackError(
+                f"Not a valid Txn hash `{l2_txn_hash.to_0x_hex()}` as it does not emit L2ToL1Tx event."
+            )
+
+        args = parsed_logs[0].get("args").__dict__
+        args = cast(L2ToL1TxArgs, args)
+
+        return args
+
+    def construct_outbox_proof(self, l2_txn_hash: HexBytes) -> OutboxProofResponse:
+        node_interface = self._get_node_interface()
+        arb_sys = self._get_arb_sys_precompile()
+
+        merkle_tree_state = arb_sys.functions.sendMerkleTreeState().call()
+        size = merkle_tree_state[0]
+
+        l2_to_l1_args = self.parse_l2_to_l1_tx_event(l2_txn_hash)
+        position = l2_to_l1_args["position"]
+
+        result = node_interface.functions.constructOutboxProof(size, position).call()
+
+        outbox_proof: OutboxProofResponse = {
+            "send": HexBytes(result[0]),
+            "root": HexBytes(result[1]),
+            "proof": [HexBytes(p) for p in result[2]],
+        }
+
+        return outbox_proof
+
+    def execution_transaction_on_l1(self, l2_txn_hash: HexBytes) -> TxReceipt:
+        outbox = self._get_outbox_contract()
+        l2_to_l1_args = self.parse_l2_to_l1_tx_event(l2_txn_hash)
+        outbox_proof = self.construct_outbox_proof(l2_txn_hash)
+
+        proof = outbox_proof["proof"]
+        position = l2_to_l1_args["position"]
+        l2_sender = l2_to_l1_args["caller"]
+        to = l2_to_l1_args["destination"]
+        l2_block = l2_to_l1_args["arbBlockNum"]
+        l1_block = l2_to_l1_args["ethBlockNum"]
+        timestamp = l2_to_l1_args["timestamp"]
+        value = l2_to_l1_args["callvalue"]
+        data = l2_to_l1_args["data"]
+
+        try:
+            execute_txn = outbox.functions.executeTransaction(
+                proof,
+                position,
+                l2_sender,
+                to,
+                l2_block,
+                l1_block,
+                timestamp,
+                value,
+                data,
+            )
+
+            gas_estimate = execute_txn.estimate_gas({"from": l2_sender})
+
+            txn_payload = execute_txn.build_transaction(
+                {
+                    "from": l2_sender,
+                    "gas": gas_estimate,
+                    "nonce": self.l1_provider.eth.get_transaction_count(
+                        self.account.address
+                    ),
+                }
+            )
+
+            signed_txn = self.account.sign_transaction(cast(dict, txn_payload))
+            txn_hash = self.l1_provider.eth.send_raw_transaction(
+                signed_txn.raw_transaction
+            )
+            receipt = self.l1_provider.eth.wait_for_transaction_receipt(txn_hash)
+
+            return receipt
+
+        except Exception as e:
+            raise NitroStackOutboxError.from_contract_error_info(e)
