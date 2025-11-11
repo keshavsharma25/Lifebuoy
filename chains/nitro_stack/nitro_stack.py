@@ -30,66 +30,12 @@ from utils.config import (
 )
 from utils.providers import get_web3
 from eth_abi import abi
-
-
-class NitroStackError(Exception):
-    """Base Exception for Nitro Stack operations."""
-
-    def __init__(self, message, original_error=None):
-        super().__init__(message)
-        self.original_error = original_error
-
-
-class NitroStackRetryableTicketError(NitroStackError):
-    """Raised in case retryable ticket manual-redeem fails."""
-
-    NO_TICKET_WITH_ID = "NoTicketWithID()"
-
-    # 0x80698456
-    NO_TICKET_SELECTOR = HexBytes(Web3.keccak(text=NO_TICKET_WITH_ID))[:4].to_0x_hex()
-
-    @classmethod
-    def from_contract_error(cls, error):
-        if type(error) is ContractCustomError:
-            error_selector = error.args[0]
-            if error_selector == cls.NO_TICKET_SELECTOR:
-                raise NitroStackRetryableTicketError(
-                    "`NoTicketWithID()` from ArbRetryableTx precompile! Either doesn't exist, expired or redeemed already.",
-                    original_error=error,
-                )
-
-        return NitroStackError(str(error), original_error=error)
-
-
-class NitroStackForceInclusionError(NitroStackError):
-    """Raised in case force inclusion fails and throws a custom contract error."""
-
-    DELAYED_BACKWARDS = "DelayedBackwards()"
-    INCLUSION_TOO_SOON = "ForceIncludeBlockTooSoon()"
-    INCORRECT_MSG_PRE_IMAGE = "IncorrectMessagePreimage()"
-
-    @classmethod
-    def from_contract_error(cls, error):
-        def get_error_selector(sig: str) -> str:
-            hash_bytes = Web3.keccak(text=sig)
-            return "0x" + hash_bytes.hex()[:8]
-
-        errors = [
-            cls.DELAYED_BACKWARDS,
-            cls.INCLUSION_TOO_SOON,
-            cls.INCORRECT_MSG_PRE_IMAGE,
-        ]
-
-        error_dict = {get_error_selector(error): error for error in errors}
-
-        if type(error) is ContractCustomError:
-            error_selector = error.args[0]
-            if error_selector in error_dict:
-                error_name = error_dict[error_selector]
-                message = f"`{error_name}` error occurred."
-                return NitroStackError(message, original_error=error)
-
-        return NitroStackError(str(error), original_error=error)
+from .custom_errors import (
+    NitroStackError,
+    NitroStackForceInclusionError,
+    NitroStackOutboxError,
+    NitroStackRetryableTicketError,
+)
 
 
 class NitroStack:
