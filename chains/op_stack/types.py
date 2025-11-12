@@ -1,9 +1,9 @@
-from typing import TypedDict
+from typing import NamedTuple, TypedDict
 
 from eth_typing import ChecksumAddress
 
 
-class WithdrawalParams(TypedDict):
+class WithdrawalParams(NamedTuple):
     nonce: int
     sender: ChecksumAddress
     target: ChecksumAddress

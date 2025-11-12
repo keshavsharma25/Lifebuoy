@@ -223,14 +223,14 @@ class OPStack:
 
         event = events[0]
 
-        parsed: WithdrawalParams = {
-            "nonce": event.get("args").get("nonce"),
-            "sender": event.get("args").get("sender"),
-            "target": event.get("args").get("target"),
-            "value": event.get("args").get("value"),
-            "gasLimit": event.get("args").get("gasLimit"),
-            "data": event.get("args").get("data"),
-        }
+        parsed: WithdrawalParams = WithdrawalParams(
+            nonce=event.get("args").get("nonce"),
+            sender=event.get("args").get("sender"),
+            target=event.get("args").get("target"),
+            value=event.get("args").get("value"),
+            gasLimit=event.get("args").get("gasLimit"),
+            data=event.get("args").get("data"),
+        )
 
         return parsed
 
@@ -266,7 +266,7 @@ class OPStack:
         computed_hash = self.l1_provider.keccak(
             encode(
                 ["uint256", "address", "address", "uint256", "uint256", "bytes"],
-                list(withdrawal_params.values()),
+                withdrawal_params,
             )
         )
 
@@ -450,7 +450,7 @@ class OPStack:
         prove_withdrawal_transaction = self._get_l1_contract(
             OP_STACK_ETHEREUM.OPTIMISM_PORTAL
         ).functions.proveWithdrawalTransaction(
-            list(withdrawal_params.values()),
+            withdrawal_params,
             dispute_game_index,
             list(output_root_proof.values()),
             withdrawal_proof,
@@ -512,7 +512,7 @@ class OPStack:
 
         finalize_withdrawal_transaction = (
             portal.functions.finalizeWithdrawalTransactionExternalProof(
-                tuple(withdrawal_params.values()),
+                withdrawal_params,
                 external_prover_address,
             )
         )
