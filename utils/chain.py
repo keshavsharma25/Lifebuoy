@@ -62,8 +62,8 @@ def get_account() -> LocalAccount:
 
     pvt_key = os.getenv("PRIVATE_KEY")
 
-    if type(pvt_key) is not str:
-        raise TypeError(f"Store private key in .env as it is of type `{type(pvt_key)}")
+    if not pvt_key:
+        raise TypeError("Error loading PRIVATE_KEY in .env")
 
     account: LocalAccount = Account.from_key(pvt_key)
 
