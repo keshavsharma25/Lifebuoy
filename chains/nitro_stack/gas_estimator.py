@@ -4,6 +4,8 @@ from web3.eth import Contract
 from web3.types import BlockData
 from utils.chain import add_gas_buffer, get_abi
 from utils.config import (
+    NITRO_STACK_ETHEREUM,
+    NITRO_STACK_L2,
     NITRO_STACK_L2_CONTRACTS,
     NITRO_STACK_ETHEREUM_CONTRACTS,
     ChainName,
@@ -26,10 +28,17 @@ class GasEstimator:
 
     def _get_node_interface(self) -> Contract:
         contracts = NITRO_STACK_L2_CONTRACTS.get(self.chain_name)
-        if not (contracts and contracts["NODE_INTERFACE"]):
-            raise ValueError()
+        if not (contracts):
+            raise ValueError(
+                f"Contract information doesn't exist for the given chain {self.chain_name}"
+            )
 
-        info = contracts.get("NODE_INTERFACE")
+        info = contracts.get(NITRO_STACK_L2.NODE_INTERFACE)
+
+        if not info:
+            raise ValueError(
+                f"{NITRO_STACK_L2.NODE_INTERFACE} information isn't available for chain {self.chain_name}"
+            )
 
         contract = self.l2_provider.eth.contract(
             info["address"],
@@ -39,8 +48,18 @@ class GasEstimator:
         return contract
 
     def _get_delayed_inbox_contract(self) -> Contract:
-        contracts = NITRO_STACK_ETHEREUM_CONTRACTS[self.chain_name]
-        info = contracts.get("DELAYED_INBOX")
+        contracts = NITRO_STACK_ETHEREUM_CONTRACTS.get(self.chain_name)
+        if not (contracts):
+            raise ValueError(
+                f"Contract information doesn't exist for the given chain {self.chain_name}"
+            )
+
+        info = contracts.get(NITRO_STACK_ETHEREUM.DELAYED_INBOX)
+
+        if not info:
+            raise ValueError(
+                f"{NITRO_STACK_ETHEREUM.DELAYED_INBOX} information isn't available for chain {self.chain_name}"
+            )
 
         contract = self.l1_provider.eth.contract(
             info["address"], abi=get_abi(info["ABI"])
