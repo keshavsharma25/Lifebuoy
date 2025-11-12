@@ -60,7 +60,9 @@ class OPStack:
     """
 
     def __init__(
-        self, chain_name: OPStackChainName, account: Optional[LocalAccount] = None
+        self,
+        chain_name: OPStackChainName,
+        account: Optional[LocalAccount] = None,
     ):
         self.chain_name = chain_name
         self.l1_provider = get_web3(ChainName.ETH_SEPOLIA)
@@ -175,32 +177,39 @@ class OPStack:
             data,
         )
 
-        gas_estimate = estimate_l2_gas(
-            self.l2_provider,
-            mp_contract.address,
-            self.account.address,
-            value,
-            data,
-        )
+        try:
+            gas_estimate = estimate_l2_gas(
+                self.l2_provider,
+                mp_contract.address,
+                self.account.address,
+                value,
+                data,
+            )
 
-        txn_payload: TxParams = msg_passer_txn.build_transaction(
-            {
-                "from": self.account.address,
-                "value": value,
-                "gas": gas_estimate,
-                "nonce": self.l2_provider.eth.get_transaction_count(
-                    self.account.address
-                ),
-                "chainId": self.l2_provider.eth.chain_id,
-            }
-        )
+            txn_payload: TxParams = msg_passer_txn.build_transaction(
+                {
+                    "from": self.account.address,
+                    "value": value,
+                    "gas": gas_estimate,
+                    "nonce": self.l2_provider.eth.get_transaction_count(
+                        self.account.address
+                    ),
+                    "chainId": self.l2_provider.eth.chain_id,
+                }
+            )
 
-        signed_txn = self.account.sign_transaction(cast(dict, txn_payload))
-        txn_hash = self.l2_provider.eth.send_raw_transaction(signed_txn.raw_transaction)
+            signed_txn = self.account.sign_transaction(cast(dict, txn_payload))
+            txn_hash = self.l2_provider.eth.send_raw_transaction(
+                signed_txn.raw_transaction
+            )
 
-        withdraw_receipt = self.l2_provider.eth.wait_for_transaction_receipt(txn_hash)
+            withdraw_receipt = self.l2_provider.eth.wait_for_transaction_receipt(
+                txn_hash
+            )
 
-        return withdraw_receipt
+            return withdraw_receipt
+        except Exception as e:
+            raise OPStackError(e)
 
     def parse_withdrawal_params(self, txn_hash: HexBytes) -> WithdrawalParams:
         withdraw_receipt = self.l2_provider.eth.get_transaction_receipt(txn_hash)
@@ -276,12 +285,10 @@ class OPStack:
         dispute_game_factory = self._get_l1_contract(
             OP_STACK_ETHEREUM.DISPUTE_GAME_FACTORY
         )
+        portal = self._get_l1_contract(OP_STACK_ETHEREUM.OPTIMISM_PORTAL)
+
         game_count = dispute_game_factory.functions.gameCount().call()
-        respected_game_type = (
-            self._get_l1_contract(OP_STACK_ETHEREUM.OPTIMISM_PORTAL)
-            .functions.respectedGameType()
-            .call()
-        )
+        respected_game_type = portal.functions.respectedGameType().call()
 
         if game_id is None:
             latest_games = dispute_game_factory.functions.findLatestGames(
