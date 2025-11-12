@@ -1,6 +1,6 @@
 from typing import TypedDict
 
-from eth_typing import ChecksumAddress, HexAddress
+from eth_typing import ChecksumAddress
 
 
 class WithdrawalParams(TypedDict):
