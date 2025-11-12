@@ -13,10 +13,9 @@ from eth_account.signers.local import LocalAccount
 from eth_typing import ChecksumAddress
 from hexbytes import HexBytes
 from web3 import Web3
-from web3.eth import Contract
 from eth_abi.abi import encode
 from web3.types import BlockData, MerkleProof, TxParams, TxReceipt, Wei
-from .op_types import (
+from .types import (
     ProvenWithdrawalResponse,
     GameSearchResult,
     WithdrawalParams,
@@ -25,6 +24,8 @@ from .op_types import (
 from utils.chain import add_gas_buffer, estimate_l2_gas, get_abi, get_account
 from utils.config import (
     ABI_FAULT_DISPUTE_GAME,
+    OP_STACK_ETHEREUM,
+    OP_STACK_L2,
     OP_STACK_L2_CONTRACTS,
     OP_STACK_ETHEREUM_CONTRACTS,
     ChainName,
@@ -66,45 +67,34 @@ class OPStack:
         self.l2_provider = get_web3(chain_name)
         self.account = account or get_account()
 
-    def portal_contract(self) -> Contract:
-        """Get the OptimismPortal2 L1 contract instance."""
+    def _get_l1_contract(self, contract: OP_STACK_ETHEREUM):
         contracts = OP_STACK_ETHEREUM_CONTRACTS.get(self.chain_name)
 
         if not contracts:
             raise InvalidChainError("Invalid chain intitialized.")
 
-        info = contracts.get("OPTIMISM_PORTAL")
+        info = contracts.get(contract)
+
+        if not info:
+            raise InvalidChainError("Invalid contract name provided.")
 
         return self.l1_provider.eth.contract(
             address=info.get("address"), abi=get_abi(info.get("ABI"))
         )
 
-    def message_passer_contract(self) -> Contract:
-        """Get the L2toL1MessagePasser L2 contract address"""
+    def _get_l2_contract(self, contract: OP_STACK_L2):
         contracts = OP_STACK_L2_CONTRACTS.get(self.chain_name)
 
         if not contracts:
             raise InvalidChainError("Invalid chain intitialized.")
 
-        info = contracts.get("L2_TO_L1_MESSAGE_PASSER")
+        info = contracts.get(contract)
 
-        return self.l1_provider.eth.contract(
-            address=info.get("address"),
-            abi=get_abi(info.get("ABI")),
-        )
+        if not info:
+            raise InvalidChainError("Invalid contract name provided.")
 
-    def dispute_game_factory(self) -> Contract:
-        """Get the Dispute Game Factory L1 contract address"""
-        contracts = OP_STACK_ETHEREUM_CONTRACTS.get(self.chain_name)
-
-        if not contracts:
-            raise InvalidChainError("Invalid chain intitialized.")
-
-        info = contracts.get("DISPUTE_GAME_FACTORY")
-
-        return self.l1_provider.eth.contract(
-            address=info.get("address"),
-            abi=get_abi(info.get("ABI")),
+        return self.l2_provider.eth.contract(
+            address=info.get("address"), abi=get_abi(info.get("ABI"))
         )
 
     def deposit_transaction(
@@ -114,7 +104,8 @@ class OPStack:
         is_creation: bool,
         data: bytes,
     ) -> TxReceipt:
-        contract = self.portal_contract()
+        """"""
+        contract = self._get_l1_contract(OP_STACK_ETHEREUM.OPTIMISM_PORTAL)
         value = Web3.to_wei(value, "ether")
 
         gas_limit = estimate_l2_gas(
@@ -174,7 +165,7 @@ class OPStack:
         gas_limit: int,
         data: bytes = b"",
     ):
-        mp_contract = self.message_passer_contract()
+        mp_contract = self._get_l2_contract(OP_STACK_L2.L2_TO_L1_MESSAGE_PASSER)
 
         value = Web3.to_wei(withdraw_value, "ether")
 
@@ -220,7 +211,7 @@ class OPStack:
             )
 
         events = (
-            self.message_passer_contract()
+            self._get_l2_contract(OP_STACK_L2.L2_TO_L1_MESSAGE_PASSER)
             .events.MessagePassed()
             .process_receipt(withdraw_receipt)
         )
@@ -252,7 +243,7 @@ class OPStack:
             )
 
         events = (
-            self.message_passer_contract()
+            self._get_l2_contract(OP_STACK_L2.L2_TO_L1_MESSAGE_PASSER)
             .events.MessagePassed()
             .process_receipt(withdraw_receipt)
         )
@@ -282,10 +273,14 @@ class OPStack:
         return withdrawal_hash.hex() == computed_hash.hex()
 
     def _get_latest_game_result(self, game_id: int | None = None) -> GameSearchResult:
-        dispute_game_factory = self.dispute_game_factory()
+        dispute_game_factory = self._get_l1_contract(
+            OP_STACK_ETHEREUM.DISPUTE_GAME_FACTORY
+        )
         game_count = dispute_game_factory.functions.gameCount().call()
         respected_game_type = (
-            self.portal_contract().functions.respectedGameType().call()
+            self._get_l1_contract(OP_STACK_ETHEREUM.OPTIMISM_PORTAL)
+            .functions.respectedGameType()
+            .call()
         )
 
         if game_id is None:
@@ -350,7 +345,7 @@ class OPStack:
         storage_slot = self._get_storage_slot(withdrawal_hash)
 
         proof: MerkleProof = self.l2_provider.eth.get_proof(
-            self.message_passer_contract().address,
+            self._get_l2_contract(OP_STACK_L2.L2_TO_L1_MESSAGE_PASSER).address,
             [storage_slot],  # type: ignore[reportCallIssue]
             int(withdrawal_block_no),
         )
@@ -452,13 +447,13 @@ class OPStack:
 
         self._verify_root_claim(init_withdraw_tx_hash)
 
-        prove_withdrawal_transaction = (
-            self.portal_contract().functions.proveWithdrawalTransaction(
-                list(withdrawal_params.values()),
-                dispute_game_index,
-                list(output_root_proof.values()),
-                withdrawal_proof,
-            )
+        prove_withdrawal_transaction = self._get_l1_contract(
+            OP_STACK_ETHEREUM.OPTIMISM_PORTAL
+        ).functions.proveWithdrawalTransaction(
+            list(withdrawal_params.values()),
+            dispute_game_index,
+            list(output_root_proof.values()),
+            withdrawal_proof,
         )
 
         gas_estimate = prove_withdrawal_transaction.estimate_gas(
@@ -511,7 +506,7 @@ class OPStack:
             f"Withdrawals yet to be enabled for `withdrawalHash`: {withdrawal_hash.to_0x_hex()}"
         )
 
-        portal = self.portal_contract()
+        portal = self._get_l1_contract(OP_STACK_ETHEREUM.OPTIMISM_PORTAL)
 
         withdrawal_params = self.parse_withdrawal_params(init_withdraw_tx_hash)
 
@@ -559,7 +554,7 @@ class OPStack:
         withdrawal_hash: HexBytes,
         external_prover_address: ChecksumAddress,
     ) -> ProvenWithdrawalResponse:
-        portal = self.portal_contract()
+        portal = self._get_l1_contract(OP_STACK_ETHEREUM.OPTIMISM_PORTAL)
 
         proven_withdrawal = portal.functions.provenWithdrawals(
             withdrawal_hash, external_prover_address
@@ -577,7 +572,7 @@ class OPStack:
         withdrawal_hash: HexBytes,
         external_prover_address: ChecksumAddress,
     ) -> bool:
-        portal = self.portal_contract()
+        portal = self._get_l1_contract(OP_STACK_ETHEREUM.OPTIMISM_PORTAL)
 
         withdrawal_info = self.get_proven_withdrawal_info(
             withdrawal_hash, external_prover_address
@@ -603,8 +598,13 @@ class OPStack:
         latest_block = self.l1_provider.eth.get_block("latest")
 
         anchor_state_registry_info = OP_STACK_ETHEREUM_CONTRACTS[self.chain_name].get(
-            "ANCHOR_STATE_REGISTRY"
+            OP_STACK_ETHEREUM.ANCHOR_STATE_REGISTRY
         )
+
+        if not anchor_state_registry_info:
+            raise Exception(
+                "Anchor State registry info not available in OP_STACK_ETHEREUM_CONTRACTS"
+            )
 
         anchor_state_registry_contract = self.l1_provider.eth.contract(
             anchor_state_registry_info["address"],
@@ -641,6 +641,6 @@ class OPStack:
         return True
 
     def is_finalized_withdrawal(self, withdrawal_hash: HexBytes):
-        portal = self.portal_contract()
+        portal = self._get_l1_contract(OP_STACK_ETHEREUM.OPTIMISM_PORTAL)
 
         return portal.functions.finalizedWithdrawals(withdrawal_hash).call()

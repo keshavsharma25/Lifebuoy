@@ -6,7 +6,6 @@ from web3.constants import ADDRESS_ZERO
 from eth_account.signers.local import LocalAccount
 from eth_typing import ChecksumAddress
 from hexbytes import HexBytes
-from web3.eth import Contract
 from web3.logs import DISCARD
 from web3.types import TxParams, TxReceipt, Wei
 import rlp
@@ -23,7 +22,9 @@ from .gas_estimator import (
 )
 from utils.chain import add_gas_buffer, get_abi, get_account
 from utils.config import (
+    NITRO_STACK_ETHEREUM,
     NITRO_STACK_ETHEREUM_CONTRACTS,
+    NITRO_STACK_L2,
     NITRO_STACK_L2_CONTRACTS,
     ChainName,
     NitroStackChainName,
@@ -47,82 +48,38 @@ class NitroStack:
         self.l2_provider = get_web3(chain_name)
         self.account = account or get_account()
 
-    def _get_sequencer_inbox(self) -> Contract:
-        contracts = NITRO_STACK_ETHEREUM_CONTRACTS[self.chain_name]
-        info = contracts.get("SEQUENCER_INBOX")
+    def _get_l1_contract(self, contract: NITRO_STACK_ETHEREUM):
+        contracts = NITRO_STACK_ETHEREUM_CONTRACTS.get(self.chain_name)
 
-        contract = self.l1_provider.eth.contract(
-            info["address"], abi=get_abi(info["ABI"])
+        if not contracts:
+            raise Exception("Invalid chain intitialized.")
+
+        info = contracts.get(contract)
+
+        if not info:
+            raise Exception("Invalid contract name provided.")
+
+        return self.l1_provider.eth.contract(
+            address=info.get("address"), abi=get_abi(info.get("ABI"))
         )
 
-        return contract
+    def _get_l2_contract(self, contract: NITRO_STACK_L2):
+        contracts = NITRO_STACK_L2_CONTRACTS.get(self.chain_name)
 
-    def _get_delayed_inbox_contract(self) -> Contract:
-        contracts = NITRO_STACK_ETHEREUM_CONTRACTS[self.chain_name]
-        info = contracts.get("DELAYED_INBOX")
+        if not contracts:
+            raise Exception("Invalid chain intitialized.")
 
-        contract = self.l1_provider.eth.contract(
-            info["address"], abi=get_abi(info["ABI"])
+        info = contracts.get(contract)
+
+        if not info:
+            raise Exception("Invalid contract name provided.")
+
+        return self.l2_provider.eth.contract(
+            address=info.get("address"), abi=get_abi(info.get("ABI"))
         )
-
-        return contract
-
-    def _get_bridge_contract(self) -> Contract:
-        contracts = NITRO_STACK_ETHEREUM_CONTRACTS[self.chain_name]
-        info = contracts.get("BRIDGE")
-
-        contract = self.l1_provider.eth.contract(
-            info["address"], abi=get_abi(info["ABI"])
-        )
-
-        return contract
-
-    def _get_arb_retryable_tx_precompile(self) -> Contract:
-        contracts = NITRO_STACK_L2_CONTRACTS[self.chain_name]
-        info = contracts.get("ARB_RETRYABLE_TX")
-
-        contract = self.l2_provider.eth.contract(
-            info["address"], abi=get_abi(info["ABI"])
-        )
-
-        return contract
-
-    def _get_arb_sys_precompile(self) -> Contract:
-        contracts = NITRO_STACK_L2_CONTRACTS[self.chain_name]
-        info = contracts.get("ARB_SYS")
-
-        contract = self.l2_provider.eth.contract(
-            info["address"], abi=get_abi(info["ABI"])
-        )
-
-        return contract
-
-    def _get_node_interface(self) -> Contract:
-        contracts = NITRO_STACK_L2_CONTRACTS[self.chain_name]
-
-        info = contracts.get("NODE_INTERFACE")
-
-        contract = self.l2_provider.eth.contract(
-            info["address"],
-            abi=get_abi(info["ABI"]),
-        )
-
-        return contract
-
-    def _get_outbox_contract(self) -> Contract:
-        contracts = NITRO_STACK_ETHEREUM_CONTRACTS[self.chain_name]
-
-        info = contracts.get("OUTBOX")
-
-        contract = self.l1_provider.eth.contract(
-            info["address"],
-            abi=get_abi(info["ABI"]),
-        )
-
-        return contract
 
     def depositEth(self, value: float) -> TxReceipt:
-        delayed_inbox = self._get_delayed_inbox_contract()
+        delayed_inbox = self._get_l1_contract(NITRO_STACK_ETHEREUM.DELAYED_INBOX)
 
         prep_txn = delayed_inbox.functions.depositEth()
 
@@ -205,7 +162,7 @@ class NitroStack:
             "data": data,
         }
 
-        inbox = self._get_delayed_inbox_contract()
+        inbox = self._get_l1_contract(NITRO_STACK_ETHEREUM.DELAYED_INBOX)
 
         retryable_ticket = inbox.functions.createRetryableTicket(
             params["to"],
@@ -425,8 +382,8 @@ class NitroStack:
     def get_retryable_ticket_id(self, l1_txn_hash: HexBytes) -> HexBytes:
         rt_receipt = self.l1_provider.eth.get_transaction_receipt(l1_txn_hash)
 
-        inbox = self._get_delayed_inbox_contract()
-        bridge = self._get_bridge_contract()
+        inbox = self._get_l1_contract(NITRO_STACK_ETHEREUM.DELAYED_INBOX)
+        bridge = self._get_l1_contract(NITRO_STACK_ETHEREUM.BRIDGE)
 
         bridge_message_delivered_event = (
             bridge.events.MessageDelivered().process_receipt(rt_receipt, errors=DISCARD)
@@ -462,7 +419,7 @@ class NitroStack:
         return HexBytes(retryable_ticket_id)
 
     def redeem_retryable_ticket(self, rt_txn_hash: HexBytes) -> TxReceipt:
-        arb_retryable_tx = self._get_arb_retryable_tx_precompile()
+        arb_retryable_tx = self._get_l2_contract(NITRO_STACK_L2.ARB_RETRYABLE_TX)
 
         redeem = arb_retryable_tx.functions.redeem(rt_txn_hash)
 
@@ -493,7 +450,7 @@ class NitroStack:
             )
 
     def cancel_retryable_ticket(self, rt_txn_hash: HexBytes) -> TxReceipt:
-        arb_retryable_tx = self._get_arb_retryable_tx_precompile()
+        arb_retryable_tx = self._get_l2_contract(NITRO_STACK_L2.ARB_RETRYABLE_TX)
 
         cancel = arb_retryable_tx.functions.cancel(rt_txn_hash)
 
@@ -524,7 +481,7 @@ class NitroStack:
             )
 
     def keep_alive_retryable_ticket(self, rt_txn_hash: HexBytes) -> TxReceipt:
-        arb_retryable_tx = self._get_arb_retryable_tx_precompile()
+        arb_retryable_tx = self._get_l2_contract(NITRO_STACK_L2.ARB_RETRYABLE_TX)
 
         keep_alive = arb_retryable_tx.functions.keepalive(rt_txn_hash)
 
@@ -555,7 +512,7 @@ class NitroStack:
             )
 
     def get_timeout_retryable_ticket(self, rt_txn_hash: HexBytes) -> int:
-        arb_retryable_tx = self._get_arb_retryable_tx_precompile()
+        arb_retryable_tx = self._get_l2_contract(NITRO_STACK_L2.ARB_RETRYABLE_TX)
 
         try:
             timeout = arb_retryable_tx.functions.getTimeout(rt_txn_hash).call()
@@ -568,7 +525,7 @@ class NitroStack:
     def get_beneficiary_retryable_ticket(
         self, rt_txn_hash: HexBytes
     ) -> ChecksumAddress:
-        arb_retryable_tx = self._get_arb_retryable_tx_precompile()
+        arb_retryable_tx = self._get_l2_contract(NITRO_STACK_L2.ARB_RETRYABLE_TX)
 
         try:
             beneficiary = arb_retryable_tx.functions.getBeneficiary(rt_txn_hash).call()
@@ -581,8 +538,8 @@ class NitroStack:
     def perform_force_inclusion(self, l1_txn_hash: HexBytes) -> TxReceipt:
         rt_receipt = self.l1_provider.eth.get_transaction_receipt(l1_txn_hash)
 
-        bridge = self._get_bridge_contract()
-        sequencer_inbox = self._get_sequencer_inbox()
+        bridge = self._get_l1_contract(NITRO_STACK_ETHEREUM.BRIDGE)
+        sequencer_inbox = self._get_l1_contract(NITRO_STACK_ETHEREUM.SEQUENCER_INBOX)
 
         bridge_message_delivered_event = (
             bridge.events.MessageDelivered().process_receipt(rt_receipt, errors=DISCARD)
@@ -639,7 +596,7 @@ class NitroStack:
         value_ether: float,
         dest_address: ChecksumAddress,
     ) -> TxReceipt:
-        arb_sys = self._get_arb_sys_precompile()
+        arb_sys = self._get_l2_contract(NITRO_STACK_L2.ARB_SYS)
 
         value_wei = Web3.to_wei(value_ether, "ether")
 
@@ -682,7 +639,7 @@ class NitroStack:
         dest_address: ChecksumAddress,
         data: HexBytes,
     ) -> TxReceipt:
-        arb_sys = self._get_arb_sys_precompile()
+        arb_sys = self._get_l2_contract(NITRO_STACK_L2.ARB_SYS)
 
         value_wei = Web3.to_wei(value_ether, "ether")
 
@@ -717,7 +674,7 @@ class NitroStack:
             raise NitroStackError(str(e), e)
 
     def parse_l2_to_l1_tx_event(self, l2_txn_hash: HexBytes) -> L2ToL1TxArgs:
-        arb_sys = self._get_arb_sys_precompile()
+        arb_sys = self._get_l2_contract(NITRO_STACK_L2.ARB_SYS)
         receipt = self.l2_provider.eth.get_transaction_receipt(l2_txn_hash)
 
         parsed_logs = arb_sys.events.L2ToL1Tx.process_receipt(receipt, errors=DISCARD)
@@ -733,8 +690,8 @@ class NitroStack:
         return args
 
     def construct_outbox_proof(self, l2_txn_hash: HexBytes) -> OutboxProofResponse:
-        node_interface = self._get_node_interface()
-        arb_sys = self._get_arb_sys_precompile()
+        node_interface = self._get_l2_contract(NITRO_STACK_L2.NODE_INTERFACE)
+        arb_sys = self._get_l2_contract(NITRO_STACK_L2.ARB_SYS)
 
         merkle_tree_state = arb_sys.functions.sendMerkleTreeState().call()
         size = merkle_tree_state[0]
@@ -753,7 +710,7 @@ class NitroStack:
         return outbox_proof
 
     def execution_transaction_on_l1(self, l2_txn_hash: HexBytes) -> TxReceipt:
-        outbox = self._get_outbox_contract()
+        outbox = self._get_l1_contract(NITRO_STACK_ETHEREUM.OUTBOX)
         l2_to_l1_args = self.parse_l2_to_l1_tx_event(l2_txn_hash)
         outbox_proof = self.construct_outbox_proof(l2_txn_hash)
 
