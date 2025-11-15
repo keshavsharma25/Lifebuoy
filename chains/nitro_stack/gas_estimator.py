@@ -14,6 +14,24 @@ from .types import GasRelatedResponse, EstimateRetryableTicketParams
 
 
 class GasEstimator:
+    """
+    Intends to assist in gas estimations for Retryable Tickets, as Arbitrum Nitro,
+    requires the users to manually estimate gas for L1 submission cost and
+    L2 execution cost.
+
+    In case, user fails to submit enough L1 submission cost, it will lead to
+    transaction failure.
+
+    But, failing to submit enough L2 execution cost, disables the L2 transaction
+    for auto-redeem. In such cases, users have to manually redeem the ticket.
+
+    Parameters
+    ----------
+    `chain_name` : ChainName
+    `l1_provider` : Web3
+    `l2_provider` : Web3
+    """
+
     # 500% increase
     GAS_PRICE_MULTIPLIER = 5
     # 300% increase
@@ -27,6 +45,13 @@ class GasEstimator:
         self.l2_provider = l2_provider
 
     def _get_node_interface(self) -> Contract:
+        """
+        returns Node Interface contract instance
+
+        Returns
+        -------
+        web3.contract.Contract
+        """
         contracts = NITRO_STACK_L2_CONTRACTS.get(self.chain_name)
         if not (contracts):
             raise ValueError(
@@ -48,6 +73,13 @@ class GasEstimator:
         return contract
 
     def _get_delayed_inbox_contract(self) -> Contract:
+        """
+        returns Delayed Inbox contract instance
+
+        Returns
+        -------
+        web3.contract.Contract
+        """
         contracts = NITRO_STACK_ETHEREUM_CONTRACTS.get(self.chain_name)
         if not (contracts):
             raise ValueError(
@@ -68,6 +100,14 @@ class GasEstimator:
         return contract
 
     def rt_max_l2_fee_per_gas(self) -> int:
+        """
+        returns L2 gas price with an added buffer of 500% (GAS_PRICE_MULTIPLIER) as recommended
+        in Arbitrum SDK
+
+        Returns
+        -------
+        int
+        """
         l2_gas_price = self.l2_provider.eth.gas_price
 
         return add_gas_buffer(
@@ -77,6 +117,18 @@ class GasEstimator:
         )
 
     def rt_estimate_l2_gas(self, params: EstimateRetryableTicketParams) -> int:
+        """
+        returns gas estimates for Retryable Ticket for L2 execution costs that is to be submitted on L1.
+
+        Parameters
+        ----------
+        `params` : EstimateRetryableTicketParams
+        TypedDict[sender, to, l2_call_value, excess_fee_refund_address, call_value_refund_address, data]
+
+        Returns
+        -------
+        int
+        """
         node_interface = self._get_node_interface()
 
         assumed_deposit = Web3.to_wei(1, "ether")
@@ -100,6 +152,14 @@ class GasEstimator:
             raise ValueError(e)
 
     def rt_max_l1_submission_cost(self, data: HexBytes) -> int:
+        """
+        returns L1 submisssion cost (enough to submit transaction to Delayed Inbox Contract) with
+        an added buffer of 300% (SUBMISSION_COST_MULITPLIER) as recommended in Arbitrum SDK
+
+        Returns
+        -------
+        int
+        """
         inbox = self._get_delayed_inbox_contract()
 
         latest_l1_block: BlockData = self.l1_provider.eth.get_block("latest")
@@ -117,6 +177,20 @@ class GasEstimator:
         )
 
     def estimate_all(self, params: EstimateRetryableTicketParams) -> GasRelatedResponse:
+        """
+        A wrapper function that returns all the required gas estimates i.e. L1 submission cost,
+        L2 execution cost, L2 gas price and total deposits.
+
+        Parameters
+        ----------
+        `params` : EstimateRetryableTicketParams
+        TypedDict[sender, to, l2_call_value, excess_fee_refund_address, call_value_refund_address, data]
+
+        Returns
+        -------
+        GasRelatedResponse
+        TypedDict[max_fee_per_gas, l2_gas_limit, l1_submission_cost, deposit]
+        """
         max_fee_per_gas = self.rt_max_l2_fee_per_gas()
         l2_gas_limit = self.rt_estimate_l2_gas(params)
         l1_submission_cost = self.rt_max_l1_submission_cost(params.get("data"))
