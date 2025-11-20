@@ -11,6 +11,7 @@ class ENV(StrEnum):
     ARB_SEPOLIA_RPC_URL = "ARB_SEPOLIA_RPC_URL"
     BASE_SEPOLIA_RPC_URL = "BASE_SEPOLIA_RPC_URL"
     OP_SEPOLIA_RPC_URL = "OP_SEPOLIA_RPC_URL"
+    SCROLL_SEPOLIA_RPC_URL = "SCROLL_SEPOLIA_RPC_URL"
 
 
 class ChainName(StrEnum):
@@ -18,6 +19,7 @@ class ChainName(StrEnum):
     ARB_SEPOLIA = "ARB_SEPOLIA"
     BASE_SEPOLIA = "BASE_SEPOLIA"
     OP_SEPOLIA = "OP_SEPOLIA"
+    SCROLL_SEPOLIA = "SCROLL_SEPOLIA"
 
 
 class ContractType(TypedDict):
@@ -163,6 +165,51 @@ NITRO_STACK_L2_CONTRACTS: Final[Dict[ChainName, Dict[NITRO_STACK_L2, ContractTyp
         NITRO_STACK_L2.ARB_SYS: _contract(
             "0x0000000000000000000000000000000000000064",
             ABI_ARB_SYS,
+        ),
+    }
+}
+
+
+# SCROLL CONFIG
+
+ABI_ENFORCED_TX_GATEWAY = "chains/scroll/ABI/EnforcedTxGateway.json"
+ABI_L1_MESSAGE_QUEUE_V2 = "chains/scroll/ABI/L1MessageQueueV2.json"
+ABI_L1_GATEWAY_ROUTER = "chains/scroll/ABI/L1GatewayRouter.json"
+ABI_L1_SCROLL_MESSENGER = "chains/scroll/ABI/L1ScrollMessenger.json"
+
+ScrollStackClassName = Literal[ChainName.SCROLL_SEPOLIA]
+
+
+class SCROLL_STACK_ETHEREUM(Enum):
+    ENFORCED_TX_GATEWAY = "ENFORCED_TX_GATEWAY"
+    L1_MESSAGE_QUEUE_V2 = "L1_MESSAGE_QUEUE_V2"
+    L1_GATEWAY_ROUTER = "L1_GATEWAY_ROUTER"
+    L1_SCROLL_MESSENGER = "L1_SCROLL_MESSENGER"
+
+
+class SCROLL_STACK_L2(Enum):
+    pass
+
+
+SCROLL_STACK_ETHEREUM_CONTRACTS: Final[
+    Dict[ChainName, Dict[SCROLL_STACK_ETHEREUM, ContractType]]
+] = {
+    ChainName.SCROLL_SEPOLIA: {
+        SCROLL_STACK_ETHEREUM.ENFORCED_TX_GATEWAY: _contract(
+            "0x97f421CA37889269a11ae0fef558114b984C7487",
+            ABI_ENFORCED_TX_GATEWAY,
+        ),
+        SCROLL_STACK_ETHEREUM.L1_MESSAGE_QUEUE_V2: _contract(
+            "0xA0673eC0A48aa924f067F1274EcD281A10c5f19F",
+            ABI_L1_MESSAGE_QUEUE_V2,
+        ),
+        SCROLL_STACK_ETHEREUM.L1_GATEWAY_ROUTER: _contract(
+            "0x13FBE0D0e5552b8c9c4AE9e2435F38f37355998a",
+            ABI_L1_GATEWAY_ROUTER,
+        ),
+        SCROLL_STACK_ETHEREUM.L1_SCROLL_MESSENGER: _contract(
+            "0x50c7d3e7f7c656493D1D76aaa1a836CedfCBB16A",
+            ABI_L1_SCROLL_MESSENGER,
         ),
     }
 }

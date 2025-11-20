@@ -1,0 +1,387 @@
+[
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "_messenger",
+                "type": "address"
+            },
+            {
+                "internalType": "address",
+                "name": "_scrollChain",
+                "type": "address"
+            },
+            {
+                "internalType": "address",
+                "name": "_enforcedTxGateway",
+                "type": "address"
+            },
+            {
+                "internalType": "address",
+                "name": "_messageQueueV1",
+                "type": "address"
+            },
+            {
+                "internalType": "address",
+                "name": "_systemConfig",
+                "type": "address"
+            }
+        ],
+        "stateMutability": "nonpayable",
+        "type": "constructor"
+    },
+    {
+        "inputs": [],
+        "name": "ErrorCallerIsNotEnforcedTxGateway",
+        "type": "error"
+    },
+    { "inputs": [], "name": "ErrorCallerIsNotMessenger", "type": "error" },
+    { "inputs": [], "name": "ErrorCallerIsNotScrollChain", "type": "error" },
+    { "inputs": [], "name": "ErrorFinalizedIndexTooLarge", "type": "error" },
+    { "inputs": [], "name": "ErrorFinalizedIndexTooSmall", "type": "error" },
+    { "inputs": [], "name": "ErrorGasLimitBelowIntrinsicGas", "type": "error" },
+    { "inputs": [], "name": "ErrorGasLimitExceeded", "type": "error" },
+    {
+        "anonymous": false,
+        "inputs": [
+            {
+                "indexed": false,
+                "internalType": "uint256",
+                "name": "finalizedIndex",
+                "type": "uint256"
+            }
+        ],
+        "name": "FinalizedDequeuedTransaction",
+        "type": "event"
+    },
+    {
+        "anonymous": false,
+        "inputs": [
+            {
+                "indexed": false,
+                "internalType": "uint8",
+                "name": "version",
+                "type": "uint8"
+            }
+        ],
+        "name": "Initialized",
+        "type": "event"
+    },
+    {
+        "anonymous": false,
+        "inputs": [
+            {
+                "indexed": true,
+                "internalType": "address",
+                "name": "previousOwner",
+                "type": "address"
+            },
+            {
+                "indexed": true,
+                "internalType": "address",
+                "name": "newOwner",
+                "type": "address"
+            }
+        ],
+        "name": "OwnershipTransferred",
+        "type": "event"
+    },
+    {
+        "anonymous": false,
+        "inputs": [
+            {
+                "indexed": true,
+                "internalType": "address",
+                "name": "sender",
+                "type": "address"
+            },
+            {
+                "indexed": true,
+                "internalType": "address",
+                "name": "target",
+                "type": "address"
+            },
+            {
+                "indexed": false,
+                "internalType": "uint256",
+                "name": "value",
+                "type": "uint256"
+            },
+            {
+                "indexed": false,
+                "internalType": "uint64",
+                "name": "queueIndex",
+                "type": "uint64"
+            },
+            {
+                "indexed": false,
+                "internalType": "uint256",
+                "name": "gasLimit",
+                "type": "uint256"
+            },
+            {
+                "indexed": false,
+                "internalType": "bytes",
+                "name": "data",
+                "type": "bytes"
+            }
+        ],
+        "name": "QueueTransaction",
+        "type": "event"
+    },
+    {
+        "inputs": [
+            { "internalType": "address", "name": "_target", "type": "address" },
+            {
+                "internalType": "uint256",
+                "name": "_gasLimit",
+                "type": "uint256"
+            },
+            { "internalType": "bytes", "name": "_data", "type": "bytes" }
+        ],
+        "name": "appendCrossDomainMessage",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            { "internalType": "address", "name": "_sender", "type": "address" },
+            { "internalType": "address", "name": "_target", "type": "address" },
+            { "internalType": "uint256", "name": "_value", "type": "uint256" },
+            {
+                "internalType": "uint256",
+                "name": "_gasLimit",
+                "type": "uint256"
+            },
+            { "internalType": "bytes", "name": "_data", "type": "bytes" }
+        ],
+        "name": "appendEnforcedTransaction",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            { "internalType": "bytes", "name": "_calldata", "type": "bytes" }
+        ],
+        "name": "calculateIntrinsicGasFee",
+        "outputs": [
+            { "internalType": "uint256", "name": "", "type": "uint256" }
+        ],
+        "stateMutability": "pure",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            { "internalType": "address", "name": "_sender", "type": "address" },
+            {
+                "internalType": "uint256",
+                "name": "_queueIndex",
+                "type": "uint256"
+            },
+            { "internalType": "uint256", "name": "_value", "type": "uint256" },
+            { "internalType": "address", "name": "_target", "type": "address" },
+            {
+                "internalType": "uint256",
+                "name": "_gasLimit",
+                "type": "uint256"
+            },
+            { "internalType": "bytes", "name": "_data", "type": "bytes" }
+        ],
+        "name": "computeTransactionHash",
+        "outputs": [
+            { "internalType": "bytes32", "name": "", "type": "bytes32" }
+        ],
+        "stateMutability": "pure",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "enforcedTxGateway",
+        "outputs": [
+            { "internalType": "address", "name": "", "type": "address" }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "_gasLimit",
+                "type": "uint256"
+            }
+        ],
+        "name": "estimateCrossDomainMessageFee",
+        "outputs": [
+            { "internalType": "uint256", "name": "", "type": "uint256" }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "estimateL2BaseFee",
+        "outputs": [
+            { "internalType": "uint256", "name": "", "type": "uint256" }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "_nextUnfinalizedQueueIndex",
+                "type": "uint256"
+            }
+        ],
+        "name": "finalizePoppedCrossDomainMessage",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "firstCrossDomainMessageIndex",
+        "outputs": [
+            { "internalType": "uint256", "name": "", "type": "uint256" }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "getFirstUnfinalizedMessageEnqueueTime",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "timestamp",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "queueIndex",
+                "type": "uint256"
+            }
+        ],
+        "name": "getMessageEnqueueTimestamp",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "timestamp",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "queueIndex",
+                "type": "uint256"
+            }
+        ],
+        "name": "getMessageRollingHash",
+        "outputs": [
+            { "internalType": "bytes32", "name": "hash", "type": "bytes32" }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "initialize",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "messageQueueV1",
+        "outputs": [
+            { "internalType": "address", "name": "", "type": "address" }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "messenger",
+        "outputs": [
+            { "internalType": "address", "name": "", "type": "address" }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "nextCrossDomainMessageIndex",
+        "outputs": [
+            { "internalType": "uint256", "name": "", "type": "uint256" }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "nextUnfinalizedQueueIndex",
+        "outputs": [
+            { "internalType": "uint256", "name": "", "type": "uint256" }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "owner",
+        "outputs": [
+            { "internalType": "address", "name": "", "type": "address" }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "renounceOwnership",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "scrollChain",
+        "outputs": [
+            { "internalType": "address", "name": "", "type": "address" }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "systemConfig",
+        "outputs": [
+            { "internalType": "address", "name": "", "type": "address" }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            { "internalType": "address", "name": "newOwner", "type": "address" }
+        ],
+        "name": "transferOwnership",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    }
+]
