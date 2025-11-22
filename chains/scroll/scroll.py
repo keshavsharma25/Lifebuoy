@@ -1,13 +1,24 @@
 from typing import Dict, Final, Optional, cast
 
+import requests
 from hexbytes import HexBytes
 from eth_typing import ChecksumAddress
 from web3 import Web3
 from web3.logs import DISCARD
 from web3.types import TxParams, TxReceipt, Wei
 
-from .types import QueueTransactionEvent, SentMessageEvent
-from .custom_errors import EventParseError, GasEstimationError, ScrollError
+from .types import (
+    ProofParams,
+    QueueTransactionEvent,
+    RelayMessageWithProofParams,
+    SentMessageEvent,
+)
+from .custom_errors import (
+    EventParseError,
+    GasEstimationError,
+    ScrollError,
+    UnprovenError,
+)
 from utils.chain import add_gas_buffer, get_account, get_abi
 from utils.config import (
     SCROLL_ETHEREUM,
@@ -27,9 +38,9 @@ class Scroll:
     Scroll stack implementation to perform force inclustion and withdrawals (escape hatch).
     """
 
-    SCROLL_API_ENDPOINT: Final[Dict[ChainName, str]] = {
+    SCROLL_API_BASE_URL: Final[Dict[ScrollChainName, str]] = {
         ChainName.SCROLL_SEPOLIA: "https://sepolia-api-bridge-v2.scroll.io/api/",
-        # ChainName.SCROLL_MAINNET:
+        # ChainName.SCROLL_MAINNET: "https://mainnet-api-bridge-v2.scroll.io/api/"
     }
 
     def __init__(
@@ -502,6 +513,126 @@ class Scroll:
             )
 
             receipt = self.l2_provider.eth.wait_for_transaction_receipt(txn_hash)
+            return receipt
+
+        except Exception as e:
+            raise ScrollError(str(e), e)
+
+    def get_withdrawal_params(
+        self, l2_txn_hash: HexBytes
+    ) -> RelayMessageWithProofParams:
+        receipt = self.l2_provider.eth.get_transaction_receipt(l2_txn_hash)
+        sender = receipt.get("from")
+
+        base_url = self.SCROLL_API_BASE_URL.get(cast(ScrollChainName, self.chain_name))
+
+        if not base_url:
+            raise ScrollError("Invalid chain. Use only Scroll supported networks")
+
+        endpoint = "l2/unclaimed/withdrawals"
+
+        params = {
+            "address": sender,
+            "page": 1,
+            "page_size": 10,
+        }
+
+        try:
+            url = base_url + endpoint
+            response = requests.get(url, params=params)
+
+            response.raise_for_status()
+            data = response.json()
+            results = data.get("data").get("results")
+
+            desired_result = None
+
+            if not results:
+                raise ValueError(
+                    f"For given sender address ({sender}), there exists no unclaimed withdrawal txn"
+                )
+
+            for result in results:
+                tx_hash = result.get("hash")
+
+                if l2_txn_hash.to_0x_hex() == tx_hash:
+                    desired_result = result
+                    break
+
+            if not desired_result:
+                raise ValueError(
+                    f"Provided withdrawal hash ({l2_txn_hash.to_0x_hex()}) not found in the unclaimed withdrawals"
+                )
+
+            claim_info = desired_result.get("claim_info")
+            is_claim = claim_info.get("claimable")
+
+            if not is_claim:
+                raise UnprovenError("Batch is yet to proven")
+
+            from_ = Web3.to_checksum_address(claim_info.get("from"))
+            to = Web3.to_checksum_address(claim_info.get("to"))
+            value = Wei(int(claim_info.get("value")))
+            nonce = int(claim_info.get("nonce"))
+            message = claim_info.get("message")
+            proof = claim_info.get("proof")
+            batch_index = int(proof.get("batch_index"))
+            merkle_proof = proof.get("merkle_proof")
+
+            parsed_proof: ProofParams = {
+                "batchIndex": batch_index,
+                "merkleProof": merkle_proof,
+            }
+
+            relay_params: RelayMessageWithProofParams = {
+                "from_": from_,
+                "to": to,
+                "value": value,
+                "nonce": nonce,
+                "message": message,
+                "proof": parsed_proof,
+            }
+
+            return relay_params
+
+        except Exception as e:
+            raise ScrollError(str(e), e)
+
+    def relay_message_with_proof(self, l2_txn_hash: HexBytes) -> TxReceipt:
+        l1_messenger = self._get_l1_contract(SCROLL_ETHEREUM.L1_SCROLL_MESSENGER)
+
+        input_params = self.get_withdrawal_params(l2_txn_hash)
+
+        from_ = input_params.get("from_")
+        to = input_params.get("to")
+        value = input_params.get("value")
+        nonce = input_params.get("nonce")
+        message = input_params.get("message")
+        batch_index = input_params.get("proof").get("batchIndex")
+        merkle_proof = input_params.get("proof").get("merkleProof")
+
+        relay_message_with_proof = l1_messenger.functions.relayMessageWithProof(
+            from_, to, value, nonce, message, (batch_index, merkle_proof)
+        )
+
+        try:
+            params: TxParams = {
+                "from": self.account.address,
+                "nonce": self.l1_provider.eth.get_transaction_count(
+                    self.account.address
+                ),
+            }
+
+            gas_estimates = relay_message_with_proof.estimate_gas(params)
+            params["gas"] = add_gas_buffer(gas_estimates)
+
+            txn_payload = relay_message_with_proof.build_transaction(params)
+            signed_txn = self.account.sign_transaction(cast(dict, txn_payload))
+            txn_hash = self.l1_provider.eth.send_raw_transaction(
+                signed_txn.raw_transaction
+            )
+
+            receipt = self.l1_provider.eth.wait_for_transaction_receipt(txn_hash)
             return receipt
 
         except Exception as e:

@@ -19,3 +19,9 @@ class EventParseError(ScrollError):
     """Exception in case transaction doesn't emit the event"""
 
     pass
+
+
+class UnprovenError(ScrollError):
+    """Raises Exception when batch is yet to proven hence withdrawals cannot be performed on L1"""
+
+    pass

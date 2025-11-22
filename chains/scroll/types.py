@@ -21,3 +21,17 @@ class SentMessageEvent(TypedDict):
     messageNonce: int
     gasLimit: int
     message: HexBytes
+
+
+class ProofParams(TypedDict):
+    batchIndex: int
+    merkleProof: HexBytes
+
+
+class RelayMessageWithProofParams(TypedDict):
+    from_: ChecksumAddress
+    to: ChecksumAddress
+    value: Wei
+    nonce: int
+    message: HexBytes
+    proof: ProofParams
