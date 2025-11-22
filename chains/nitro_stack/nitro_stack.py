@@ -78,7 +78,9 @@ class NitroStack:
         -------
         web3.contract.Contract
         """
-        contracts = NITRO_STACK_ETHEREUM_CONTRACTS.get(self.chain_name)
+        contracts = NITRO_STACK_ETHEREUM_CONTRACTS.get(
+            cast(NitroStackChainName, self.chain_name)
+        )
 
         if not contracts:
             raise Exception("Invalid chain intitialized.")
@@ -104,7 +106,9 @@ class NitroStack:
         -------
         web3.contract.Contract
         """
-        contracts = NITRO_STACK_L2_CONTRACTS.get(self.chain_name)
+        contracts = NITRO_STACK_L2_CONTRACTS.get(
+            cast(NitroStackChainName, self.chain_name)
+        )
 
         if not contracts:
             raise Exception("Invalid chain intitialized.")

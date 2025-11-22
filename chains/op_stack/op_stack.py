@@ -112,7 +112,9 @@ class OPStack:
         -------
         web3.contract.Contract
         """
-        contracts = OP_STACK_ETHEREUM_CONTRACTS.get(self.chain_name)
+        contracts = OP_STACK_ETHEREUM_CONTRACTS.get(
+            cast(OPStackChainName, self.chain_name)
+        )
 
         if not contracts:
             raise InvalidChainError("Invalid chain intitialized.")
@@ -138,7 +140,7 @@ class OPStack:
         -------
         web3.contract.Contract
         """
-        contracts = OP_STACK_L2_CONTRACTS.get(self.chain_name)
+        contracts = OP_STACK_L2_CONTRACTS.get(cast(OPStackChainName, self.chain_name))
 
         if not contracts:
             raise InvalidChainError("Invalid chain intitialized.")
@@ -1013,18 +1015,8 @@ class OPStack:
 
         latest_block = self.l1_provider.eth.get_block("latest")
 
-        anchor_state_registry_info = OP_STACK_ETHEREUM_CONTRACTS[self.chain_name].get(
+        anchor_state_registry_contract = self._get_l1_contract(
             OP_STACK_ETHEREUM.ANCHOR_STATE_REGISTRY
-        )
-
-        if not anchor_state_registry_info:
-            raise Exception(
-                "Anchor State registry info not available in OP_STACK_ETHEREUM_CONTRACTS"
-            )
-
-        anchor_state_registry_contract = self.l1_provider.eth.contract(
-            anchor_state_registry_info["address"],
-            abi=get_abi(anchor_state_registry_info["ABI"]),
         )
 
         is_game_claim_valid = anchor_state_registry_contract.functions.isGameClaimValid(

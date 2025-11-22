@@ -1,3 +1,4 @@
+from typing import cast
 from hexbytes import HexBytes
 from web3 import Web3
 from web3.eth import Contract
@@ -9,6 +10,7 @@ from utils.config import (
     NITRO_STACK_L2_CONTRACTS,
     NITRO_STACK_ETHEREUM_CONTRACTS,
     ChainName,
+    NitroStackChainName,
 )
 from .types import GasRelatedResponse, EstimateRetryableTicketParams
 
@@ -52,7 +54,9 @@ class GasEstimator:
         -------
         web3.contract.Contract
         """
-        contracts = NITRO_STACK_L2_CONTRACTS.get(self.chain_name)
+        contracts = NITRO_STACK_L2_CONTRACTS.get(
+            cast(NitroStackChainName, self.chain_name)
+        )
         if not (contracts):
             raise ValueError(
                 f"Contract information doesn't exist for the given chain {self.chain_name}"
@@ -80,7 +84,9 @@ class GasEstimator:
         -------
         web3.contract.Contract
         """
-        contracts = NITRO_STACK_ETHEREUM_CONTRACTS.get(self.chain_name)
+        contracts = NITRO_STACK_ETHEREUM_CONTRACTS.get(
+            cast(NitroStackChainName, self.chain_name)
+        )
         if not (contracts):
             raise ValueError(
                 f"Contract information doesn't exist for the given chain {self.chain_name}"

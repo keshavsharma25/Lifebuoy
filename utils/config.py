@@ -62,7 +62,7 @@ class OP_STACK_L2(Enum):
 
 
 OP_STACK_ETHEREUM_CONTRACTS: Final[
-    Dict[ChainName, Dict[OP_STACK_ETHEREUM, ContractType]]
+    Dict[OPStackChainName, Dict[OP_STACK_ETHEREUM, ContractType]]
 ] = {
     ChainName.OP_SEPOLIA: {
         OP_STACK_ETHEREUM.OPTIMISM_PORTAL: _contract(
@@ -89,7 +89,7 @@ OP_STACK_ETHEREUM_CONTRACTS: Final[
 }
 
 
-OP_STACK_L2_CONTRACTS: Dict[ChainName, Dict[OP_STACK_L2, ContractType]] = {
+OP_STACK_L2_CONTRACTS: Dict[OPStackChainName, Dict[OP_STACK_L2, ContractType]] = {
     ChainName.OP_SEPOLIA: {
         OP_STACK_L2.L2_TO_L1_MESSAGE_PASSER: _contract(
             "0x4200000000000000000000000000000000000016", ABI_L2_TO_L1_MESSAGE_PASSER
@@ -130,7 +130,7 @@ class NITRO_STACK_L2(Enum):
 
 
 NITRO_STACK_ETHEREUM_CONTRACTS: Final[
-    Dict[ChainName, Dict[NITRO_STACK_ETHEREUM, ContractType]]
+    Dict[NitroStackChainName, Dict[NITRO_STACK_ETHEREUM, ContractType]]
 ] = {
     ChainName.ARB_SEPOLIA: {
         NITRO_STACK_ETHEREUM.DELAYED_INBOX: _contract(
@@ -152,7 +152,9 @@ NITRO_STACK_ETHEREUM_CONTRACTS: Final[
     }
 }
 
-NITRO_STACK_L2_CONTRACTS: Final[Dict[ChainName, Dict[NITRO_STACK_L2, ContractType]]] = {
+NITRO_STACK_L2_CONTRACTS: Final[
+    Dict[NitroStackChainName, Dict[NITRO_STACK_L2, ContractType]]
+] = {
     ChainName.ARB_SEPOLIA: {
         NITRO_STACK_L2.NODE_INTERFACE: _contract(
             "0x00000000000000000000000000000000000000C8",
