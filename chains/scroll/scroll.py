@@ -1,5 +1,4 @@
-from datetime import datetime
-from typing import Optional, cast
+from typing import Dict, Final, Optional, cast
 
 from hexbytes import HexBytes
 from eth_typing import ChecksumAddress
@@ -11,10 +10,10 @@ from .types import QueueTransactionEvent, SentMessageEvent
 from .custom_errors import EventParseError, ScrollError
 from utils.chain import add_gas_buffer, get_account, get_abi
 from utils.config import (
-    SCROLL_STACK_ETHEREUM,
-    SCROLL_STACK_ETHEREUM_CONTRACTS,
+    SCROLL_ETHEREUM,
+    SCROLL_ETHEREUM_CONTRACTS,
     ChainName,
-    ScrollStackClassName,
+    ScrollChainName,
 )
 from eth_account.signers.local import LocalAccount
 
@@ -28,7 +27,7 @@ class Scroll:
 
     def __init__(
         self,
-        chain_name: ScrollStackClassName,
+        chain_name: ScrollChainName,
         account: Optional[LocalAccount] = None,
     ) -> None:
         self.chain_name = chain_name
@@ -36,7 +35,7 @@ class Scroll:
         self.l2_provider = get_web3(chain_name)
         self.account = account or get_account()
 
-    def _get_l1_contract(self, contract: SCROLL_STACK_ETHEREUM):
+    def _get_l1_contract(self, contract: SCROLL_ETHEREUM):
         """
         Retrieve the instantiated L1 contract related to OP-Stack chain.
 
@@ -48,7 +47,9 @@ class Scroll:
         -------
         web3.contract.Contract
         """
-        contracts = SCROLL_STACK_ETHEREUM_CONTRACTS.get(self.chain_name)
+        contracts = SCROLL_ETHEREUM_CONTRACTS.get(
+            cast(ScrollChainName, self.chain_name)
+        )
 
         if not contracts:
             raise ValueError("Invalid chain intitialized.")
@@ -62,13 +63,20 @@ class Scroll:
             address=info.get("address"), abi=get_abi(info.get("ABI"))
         )
 
-    # 1 implement deposit eth & call ✅
-    # 2 check for deposit eth & call ✅
-    # 3 send some amount from address A to B via send_transaction ✅
-    # 4 deploy a contract via send_transaction 🚢
-    # 5 implement send_transaction_via_signature
-    # 6 Do 3 & 4 again via signature function
-    # 7 L1 -> L2 Messaging done!
+    def _get_l2_contract(self, contract: SCROLL_L2):
+        contracts = SCROLL_L2_CONTRACTS.get(cast(ScrollChainName, self.chain_name))
+
+        if not contracts:
+            raise ValueError("Invalid chain intitialized.")
+
+        info = contracts.get(contract)
+
+        if not info:
+            raise ValueError("Invalid contract name provided.")
+
+        return self.l2_provider.eth.contract(
+            address=info.get("address"), abi=get_abi(info.get("ABI"))
+        )
 
     def deposit_eth_and_call(
         self,
@@ -79,7 +87,7 @@ class Scroll:
     ) -> TxReceipt:
         value = Web3.to_wei(value_ether, "ether")
 
-        l1_gateway = self._get_l1_contract(SCROLL_STACK_ETHEREUM.L1_GATEWAY_ROUTER)
+        l1_gateway = self._get_l1_contract(SCROLL_ETHEREUM.L1_GATEWAY_ROUTER)
 
         deposit_eth_and_call = l1_gateway.functions.depositETHAndCall(
             destination_address,
@@ -88,7 +96,7 @@ class Scroll:
             gas_limit,
         )
 
-        message_queue = self._get_l1_contract(SCROLL_STACK_ETHEREUM.L1_MESSAGE_QUEUE_V2)
+        message_queue = self._get_l1_contract(SCROLL_ETHEREUM.L1_MESSAGE_QUEUE_V2)
         l2_base_fee: int = message_queue.functions.estimateL2BaseFee().call()
 
         value = Wei(value + l2_base_fee * gas_limit)
@@ -123,13 +131,11 @@ class Scroll:
         data: HexBytes = HexBytes(""),
         gas_limit: Optional[int] = None,
     ) -> TxReceipt:
-        enforced_tx_gateway = self._get_l1_contract(
-            SCROLL_STACK_ETHEREUM.ENFORCED_TX_GATEWAY
-        )
+        enforced_tx_gateway = self._get_l1_contract(SCROLL_ETHEREUM.ENFORCED_TX_GATEWAY)
 
         value = Web3.to_wei(value_ether, "ether")
 
-        message_queue = self._get_l1_contract(SCROLL_STACK_ETHEREUM.L1_MESSAGE_QUEUE_V2)
+        message_queue = self._get_l1_contract(SCROLL_ETHEREUM.L1_MESSAGE_QUEUE_V2)
 
         l2_base_fee: int = message_queue.functions.estimateL2BaseFee().call()
 
@@ -186,7 +192,7 @@ class Scroll:
     def parse_queue_transaction_event(
         self, l1_txn_hash: HexBytes
     ) -> QueueTransactionEvent:
-        msg_queue = self._get_l1_contract(SCROLL_STACK_ETHEREUM.L1_MESSAGE_QUEUE_V2)
+        msg_queue = self._get_l1_contract(SCROLL_ETHEREUM.L1_MESSAGE_QUEUE_V2)
         receipt = self.l1_provider.eth.get_transaction_receipt(l1_txn_hash)
 
         events = msg_queue.events.QueueTransaction().process_receipt(
@@ -212,9 +218,7 @@ class Scroll:
         return parsed_event
 
     def parse_sent_message_event(self, l1_txn_hash: HexBytes):
-        scroll_messenger = self._get_l1_contract(
-            SCROLL_STACK_ETHEREUM.L1_SCROLL_MESSENGER
-        )
+        scroll_messenger = self._get_l1_contract(SCROLL_ETHEREUM.L1_SCROLL_MESSENGER)
         receipt = self.l1_provider.eth.get_transaction_receipt(l1_txn_hash)
 
         events = scroll_messenger.events.SentMessage().process_receipt(
@@ -245,7 +249,7 @@ class Scroll:
     ) -> TxReceipt:
         sent_message_event_info = self.parse_sent_message_event(l1_txn_hash)
 
-        l1_messenger = self._get_l1_contract(SCROLL_STACK_ETHEREUM.L1_SCROLL_MESSENGER)
+        l1_messenger = self._get_l1_contract(SCROLL_ETHEREUM.L1_SCROLL_MESSENGER)
 
         if not refund_address:
             refund_address = self.account.address
@@ -260,7 +264,7 @@ class Scroll:
             refund_address,
         )
 
-        message_queue = self._get_l1_contract(SCROLL_STACK_ETHEREUM.L1_MESSAGE_QUEUE_V2)
+        message_queue = self._get_l1_contract(SCROLL_ETHEREUM.L1_MESSAGE_QUEUE_V2)
 
         l2_base_fee: int = message_queue.functions.estimateL2BaseFee().call()
 
@@ -293,9 +297,7 @@ class Scroll:
     def compute_l2_txn_hash(self, l1_txn_hash: HexBytes) -> HexBytes:
         queue_txn_event = self.parse_queue_transaction_event(l1_txn_hash)
 
-        message_queue_v2 = self._get_l1_contract(
-            SCROLL_STACK_ETHEREUM.L1_MESSAGE_QUEUE_V2
-        )
+        message_queue_v2 = self._get_l1_contract(SCROLL_ETHEREUM.L1_MESSAGE_QUEUE_V2)
         l2_txn_hash = message_queue_v2.functions.computeTransactionHash(
             queue_txn_event["sender"],
             queue_txn_event["queueIndex"],
@@ -318,13 +320,11 @@ class Scroll:
         data: HexBytes = HexBytes(""),
         refund_address: Optional[ChecksumAddress] = None,
     ):
-        enforced_tx_gateway = self._get_l1_contract(
-            SCROLL_STACK_ETHEREUM.ENFORCED_TX_GATEWAY
-        )
+        enforced_tx_gateway = self._get_l1_contract(SCROLL_ETHEREUM.ENFORCED_TX_GATEWAY)
 
         value = Web3.to_wei(value_ether, "ether")
 
-        message_queue = self._get_l1_contract(SCROLL_STACK_ETHEREUM.L1_MESSAGE_QUEUE_V2)
+        message_queue = self._get_l1_contract(SCROLL_ETHEREUM.L1_MESSAGE_QUEUE_V2)
         l2_base_fee: int = message_queue.functions.estimateL2BaseFee().call()
 
         l2_estimate_gas_params: TxParams = {
@@ -391,9 +391,7 @@ class Scroll:
         deadline: int,
         data: HexBytes,
     ) -> HexBytes:
-        enforced_gateway = self._get_l1_contract(
-            SCROLL_STACK_ETHEREUM.ENFORCED_TX_GATEWAY
-        )
+        enforced_gateway = self._get_l1_contract(SCROLL_ETHEREUM.ENFORCED_TX_GATEWAY)
 
         eip712_domain = {
             "name": "EnforcedTxGateway",
