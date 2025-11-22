@@ -7,11 +7,13 @@ from web3.logs import DISCARD
 from web3.types import TxParams, TxReceipt, Wei
 
 from .types import QueueTransactionEvent, SentMessageEvent
-from .custom_errors import EventParseError, ScrollError
+from .custom_errors import EventParseError, GasEstimationError, ScrollError
 from utils.chain import add_gas_buffer, get_account, get_abi
 from utils.config import (
     SCROLL_ETHEREUM,
     SCROLL_ETHEREUM_CONTRACTS,
+    SCROLL_L2,
+    SCROLL_L2_CONTRACTS,
     ChainName,
     ScrollChainName,
 )
@@ -24,6 +26,11 @@ class Scroll:
     """
     Scroll stack implementation to perform force inclustion and withdrawals (escape hatch).
     """
+
+    SCROLL_API_ENDPOINT: Final[Dict[ChainName, str]] = {
+        ChainName.SCROLL_SEPOLIA: "https://sepolia-api-bridge-v2.scroll.io/api/",
+        # ChainName.SCROLL_MAINNET:
+    }
 
     def __init__(
         self,
@@ -431,3 +438,71 @@ class Scroll:
         )
 
         return signed_message.signature
+
+    def is_L1_message_executed(self, l1_txn_hash: HexBytes) -> bool:
+        l2_messenger = self._get_l2_contract(SCROLL_L2.L2_SCROLL_MESSENGER)
+        boolean: bool = l2_messenger.functions.isL1MessageExecuted(l1_txn_hash).call()
+
+        return boolean
+
+    def withdraw_eth_and_call(
+        self,
+        destination_address: ChecksumAddress,
+        value_ether: float,
+        data: Optional[HexBytes] = HexBytes(""),
+        gas_limit: Optional[int] = None,
+    ) -> TxReceipt:
+        value = Web3.to_wei(value_ether, "ether")
+        l2_gateway = self._get_l2_contract(SCROLL_L2.L2_GATEWAY_ROUTER)
+
+        if not gas_limit:
+            try:
+                l1_params: TxParams = {
+                    "from": self.account.address,
+                    "to": destination_address,
+                    "nonce": self.l1_provider.eth.get_transaction_count(
+                        self.account.address
+                    ),
+                    "value": value,
+                }
+
+                if data:
+                    l1_params["data"] = data
+
+                estimated_gas = self.l1_provider.eth.estimate_gas(l1_params)
+                gas_limit = add_gas_buffer(estimated_gas)
+
+            except Exception as e:
+                GasEstimationError(str(e), e)
+
+        withdraw_eth_and_call = l2_gateway.functions.withdrawETHAndCall(
+            destination_address,
+            value,
+            data,
+            gas_limit,
+        )
+
+        try:
+            params: TxParams = {
+                "from": self.account.address,
+                "nonce": self.l2_provider.eth.get_transaction_count(
+                    self.account.address
+                ),
+                "value": value,
+            }
+
+            estimated_gas = withdraw_eth_and_call.estimate_gas(params)
+            params["gas"] = estimated_gas
+
+            tx_payload = withdraw_eth_and_call.build_transaction(params)
+
+            signed_txn = self.account.sign_transaction(cast(dict, tx_payload))
+            txn_hash = self.l2_provider.eth.send_raw_transaction(
+                signed_txn.raw_transaction
+            )
+
+            receipt = self.l2_provider.eth.wait_for_transaction_receipt(txn_hash)
+            return receipt
+
+        except Exception as e:
+            raise ScrollError(str(e), e)

@@ -178,6 +178,8 @@ ABI_ENFORCED_TX_GATEWAY = "chains/scroll/ABI/EnforcedTxGateway.json"
 ABI_L1_MESSAGE_QUEUE_V2 = "chains/scroll/ABI/L1MessageQueueV2.json"
 ABI_L1_GATEWAY_ROUTER = "chains/scroll/ABI/L1GatewayRouter.json"
 ABI_L1_SCROLL_MESSENGER = "chains/scroll/ABI/L1ScrollMessenger.json"
+ABI_L2_GATEWAY_ROUTER = "chains/scroll/ABI/L2GatewayRouter.json"
+ABI_L2_SCROLL_MESSENGER = "chains/scroll/ABI/L2ScrollMessenger.json"
 
 ScrollChainName = Literal[ChainName.SCROLL_SEPOLIA]
 
@@ -189,8 +191,9 @@ class SCROLL_ETHEREUM(Enum):
     L1_SCROLL_MESSENGER = "L1_SCROLL_MESSENGER"
 
 
-class SCROLL_STACK_L2(Enum):
-    pass
+class SCROLL_L2(Enum):
+    L2_GATEWAY_ROUTER = "L2_GATEWAY_ROUTER"
+    L2_SCROLL_MESSENGER = "L2_SCROLL_MESSENGER"
 
 
 SCROLL_ETHEREUM_CONTRACTS: Final[
@@ -214,4 +217,16 @@ SCROLL_ETHEREUM_CONTRACTS: Final[
             ABI_L1_SCROLL_MESSENGER,
         ),
     }
+}
+
+SCROLL_L2_CONTRACTS: Final[Dict[ScrollChainName, Dict[SCROLL_L2, ContractType]]] = {
+    ChainName.SCROLL_SEPOLIA: {
+        SCROLL_L2.L2_GATEWAY_ROUTER: _contract(
+            "0x9aD3c5617eCAa556d6E166787A97081907171230", ABI_L2_GATEWAY_ROUTER
+        ),
+        SCROLL_L2.L2_SCROLL_MESSENGER: _contract(
+            "0xBa50f5340FB9F3Bd074bD638c9BE13eCB36E603d",
+            ABI_L2_SCROLL_MESSENGER,
+        ),
+    },
 }
