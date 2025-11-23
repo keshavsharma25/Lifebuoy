@@ -45,7 +45,7 @@ from .custom_errors import (
 
 class OPStack:
     """
-    This class is to interact with OP-Stack compatible chains
+    This class helps interact with OP-Stack compatible chains
     like Optimism, Base, Unichain, etc.
 
     Parameters
