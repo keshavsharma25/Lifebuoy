@@ -35,7 +35,37 @@ from utils.providers import get_web3
 
 class Scroll:
     """
-    Scroll stack implementation to perform force inclustion and withdrawals (escape hatch).
+    This class helps interact with Scroll Mainnet & Sepolia to perform
+    forced inclusion (enforced txs) and L2 withdrawals (escape hatch).
+
+    Parameters
+    ----------
+
+    `chain_name` : ScrollChainName
+
+    `account` : LocalAccount | None
+        if none, create account instance for private key provided in .env
+
+    MORE INFO
+    ---------
+
+    Scroll is a zk-EVM rollup that supports enforced txs (forced inclusion)
+    via `Enforced Tx Gateway` (after Euclid upgrade). Via enforced txs, users
+    can interact with the rollup as if the txns are submitted by the sender on
+    the rollup itself. Enforced txs are submitted via `sendTransaction()`
+    in `Enforced Tx Gateway`. Once the transaction is submitted, the rollup
+    processes the request upon finalization on Ethereum (2 epochs).
+
+    The users can deposit ETH and ERC20 via `depositETH` or `depositETHAndCall`
+    and `depositERC20` or `depositERC20AndCall` (not implemented in this class)
+    in `L1 Gateway Router`. The users can also withdraw the same via
+    `L2 Gateway Router` (`withdrawETH`, `withdrawETHAndCall` for ETH).
+
+    L1 messages are delivered to the rollup once finalized on L1 (Ethereum
+    finalizes in 2 epochs i.e. ∼13 min). Whereas, batches (containing L2
+    messages) are required to be proved via ZK proofs periodically to amortize
+    computation costs. Once the proof is submitted (2-6 hours), users can relay
+    the messages via `relayMessageWithProof` in `L1ScrollMessenger`.
     """
 
     SCROLL_API_BASE_URL: Final[Dict[ScrollChainName, str]] = {
@@ -55,7 +85,7 @@ class Scroll:
 
     def _get_l1_contract(self, contract: SCROLL_ETHEREUM):
         """
-        Retrieve the instantiated L1 contract related to OP-Stack chain.
+        Retrieve the instantiated L1 contract related to Scroll chain.
 
         Parameters
         ----------
@@ -82,6 +112,17 @@ class Scroll:
         )
 
     def _get_l2_contract(self, contract: SCROLL_L2):
+        """
+        Retrieve the instantiated L2 contract related to Scroll chain.
+
+        Parameters
+        ----------
+        contract : OP_STACK_ETHEREUM
+
+        Returns
+        -------
+        web3.contract.Contract
+        """
         contracts = SCROLL_L2_CONTRACTS.get(cast(ScrollChainName, self.chain_name))
 
         if not contracts:
@@ -103,6 +144,38 @@ class Scroll:
         destination_address: Optional[ChecksumAddress] = None,
         data: HexBytes = HexBytes(""),
     ) -> TxReceipt:
+        """
+        To deposit ETH, Scroll provides a canonical bridge that users can
+        use to send ETH to an EOA or interact with a contract on Scroll.
+
+        The gateway provides three `depositETH` related functions. The
+        function signatures are: `depositETH(uint256 amount,uint256 gasLimit)`,
+        `depositETH(address to,uint256 amount,uint256 gasLimit)` and
+        `depositETHAndCall(address to,uint256 amount,bytes calldata data,
+        uint256 gasLimit)`. Both variations of`depositETH` uses
+        `depositETHAndCall` via some parameters are set by default for improved
+        UX.
+
+        This method only implements the `depositETHAndCall` as it also considers
+        the same UX.
+
+        Parameters
+        ----------
+        `value_ether` : float
+            The amount (in ETH) to send.
+
+        `gas_limit` : int
+            The gas limit for the transaction
+
+        `destination_address` : ChecksumAddress, optional
+            The address to send to. Default is None
+        `data` : HexBytes, optional
+             The calldata payload for L2 transaction. Default is `HexBytes("")`.
+
+        Returns
+        -------
+        TxReceipt
+        """
         value = Web3.to_wei(value_ether, "ether")
 
         l1_gateway = self._get_l1_contract(SCROLL_ETHEREUM.L1_GATEWAY_ROUTER)
@@ -149,6 +222,32 @@ class Scroll:
         data: HexBytes = HexBytes(""),
         gas_limit: Optional[int] = None,
     ) -> TxReceipt:
+        """
+        This method helps perform enforced tx (forced inclusion) in Scroll.
+        Post Euclid upgrade (April 2025), Scroll supports the feature where
+        users can force include transactions via L1 overriding the sequencer.
+
+
+        To enforce transaction, users (only EOAs are allowed) interact with
+        `sendTransaction` function in `EnforcedTxGateway` contract.
+        Once the L1 txn containing the L1 message finalizes on
+        Ethereum (2 epochs), the sequencer must sequence the L1 message as a
+        transaction on L2.
+
+        Messages sent via sendTransaction emulate native L2 transactions.
+        Even though the transaction originates on L1, the sender's address is
+        preserved in the L2 from field (unlike standard cross-domain messages).
+
+        Parameters
+        ----------
+        `value_ether` : float
+        `destination_address` : ChecksumAddress, optional
+        `data` : HexBytes, optional
+        `gas_limit` : Optional[int], optional
+
+        Returns
+        -------
+        """
         enforced_tx_gateway = self._get_l1_contract(SCROLL_ETHEREUM.ENFORCED_TX_GATEWAY)
 
         value = Web3.to_wei(value_ether, "ether")
@@ -208,6 +307,20 @@ class Scroll:
     def parse_queue_transaction_event(
         self, l1_txn_hash: HexBytes
     ) -> QueueTransactionEvent:
+        """
+        This helper method helps parse the `QueueTransaction` event that the
+        cross-domain message related transaction emits. The event info helps
+        compute the L2 txn hash beforehand.
+
+        Parameters
+        ----------
+        `l1_txn_hash` : HexBytes
+
+        Returns
+        -------
+        `event` : QueueTransactionEvent
+            TypedDict[sender, target, value, queueIndex, gasLimit, data]
+        """
         msg_queue = self._get_l1_contract(SCROLL_ETHEREUM.L1_MESSAGE_QUEUE_V2)
         receipt = self.l1_provider.eth.get_transaction_receipt(l1_txn_hash)
 
@@ -233,7 +346,21 @@ class Scroll:
 
         return parsed_event
 
-    def parse_sent_message_event(self, l1_txn_hash: HexBytes):
+    def parse_sent_message_event(self, l1_txn_hash: HexBytes) -> SentMessageEvent:
+        """
+        This helper method parses `SentMessage` event emitted by standard cross-domain L1
+        message transactions. With message-nonce and message, users can replay message
+        in case failed due to low gas limit provided initially.
+
+        Parameters
+        ----------
+        `l1_txn_hash` : HexBytes
+
+        Returns
+        -------
+        `event` : SentMessageEvent
+            TypedDict[sender, target, value, messageNonce, gasLimit, message]
+        """
         scroll_messenger = self._get_l1_contract(SCROLL_ETHEREUM.L1_SCROLL_MESSENGER)
         receipt = self.l1_provider.eth.get_transaction_receipt(l1_txn_hash)
 
@@ -263,6 +390,25 @@ class Scroll:
         new_gas_limit: int,
         refund_address: Optional[ChecksumAddress] = None,
     ) -> TxReceipt:
+        """
+        This method implements `replayMessage` function in L1 Scroll Messenger
+        contract. It helps re-attempt to execute failed L1 -> L2 messages due to
+        said `gaslimit` being insufficient. Users can re-execute the same message
+        with relatively higher gaslimit.
+
+        Parameters
+        ----------
+        `l1_txn_hash` : HexBytes
+
+        `new_gas_limit` : int
+
+        `refund_address` : ChecksumAddress, optional
+            Refund the excess gas to the provided address.
+            Default is msg.sender address
+        Returns
+        -------
+        TxReceipt
+        """
         sent_message_event_info = self.parse_sent_message_event(l1_txn_hash)
 
         l1_messenger = self._get_l1_contract(SCROLL_ETHEREUM.L1_SCROLL_MESSENGER)
@@ -335,7 +481,42 @@ class Scroll:
         gas_limit: Optional[int] = None,
         data: HexBytes = HexBytes(""),
         refund_address: Optional[ChecksumAddress] = None,
-    ):
+    ) -> TxReceipt:
+        """
+        This method is for relayers to perform enforced txns on behalf of the senders.
+        A valid signature within a given deadline helps improved UX as then users can
+        perform gasless transaction even via L1.
+
+        Parameters
+        ----------
+        `value_ether` : float
+            Amount (in ether) that is to be passed as value.
+
+        `sender_address` : ChecksumAddress
+            Address who signed the provided signature.
+
+        `destination_address` : ChecksumAddress
+            Address that the sender interacts with.
+
+        `deadline` : int
+            Deadline to expiry of the signature.
+
+        `signature` : HexBytes
+
+        `gas_limit` : int, optional
+            Override gas limit estimation to perform the L2 txn. By default, method
+            performs gas estimations and add necessary buffer.
+
+        `data` : HexBytes, optional
+            L2 calldata for the L2 txn. Default is `HexBytes("")`
+
+        `refund_address` : ChecksumAddress, optional
+            Address to refund excess gas. Default is msg.sender (relayer)
+
+        Returns
+        -------
+        `TxReceipt`
+        """
         enforced_tx_gateway = self._get_l1_contract(SCROLL_ETHEREUM.ENFORCED_TX_GATEWAY)
 
         value = Web3.to_wei(value_ether, "ether")
@@ -407,6 +588,26 @@ class Scroll:
         deadline: int,
         data: HexBytes,
     ) -> HexBytes:
+        """
+        This helper method helps generate signature for the requested
+        transaction metadata.
+
+        Reference:
+        [EnforcedTxGateway specs](https://github.com/scroll-tech/scroll-contracts/blob/39619d8cbede5e423c9ede52db00203deac1658a/hardhat-test/EnforcedTxGateway.spec.ts#L218)
+
+        Parameters
+        ----------
+        `signer_account` : LocalAccount
+        `destination_address` : ChecksumAddress
+        `value` : Wei
+        `gas_limit` : int
+        `deadline` : int
+        `data` : HexBytes
+
+        Returns
+        -------
+        `signature` : HexBytes
+        """
         enforced_gateway = self._get_l1_contract(SCROLL_ETHEREUM.ENFORCED_TX_GATEWAY)
 
         eip712_domain = {
@@ -449,6 +650,18 @@ class Scroll:
         return signed_message.signature
 
     def is_L1_message_executed(self, l1_txn_hash: HexBytes) -> bool:
+        """
+        Returns bool if L1 message is executed on L2.
+
+        Parameters
+        ----------
+        `l1_txn_hash` : HexBytes
+            L1 message related txn hash
+
+        Returns
+        -------
+        bool
+        """
         l2_messenger = self._get_l2_contract(SCROLL_L2.L2_SCROLL_MESSENGER)
         boolean: bool = l2_messenger.functions.isL1MessageExecuted(l1_txn_hash).call()
 
@@ -461,6 +674,35 @@ class Scroll:
         data: Optional[HexBytes] = HexBytes(""),
         gas_limit: Optional[int] = None,
     ) -> TxReceipt:
+        """
+        This methods helps withdraw ETH and interact if valid
+        calldata provided. It implements `withdrawETHAndCall`
+        in `L2 Gateway Router` contract. Via this function, users
+        can canonically exit back to L1. Withdrawals on rollups are
+        a two step process.
+        This method being step-1: "creates an L2 message".
+        Step-2 requires the same message to be proved on L1
+        that it indeed exists and its validity and availability have
+        been ZK proved. `relay_message_with_proof` performs step-2.
+
+        Parameters
+        ----------
+        `destination_address` : ChecksumAddress
+
+        `value_ether` : float
+            Amount (in ether) that is to be passed as value.
+
+        `data` : HexBytes, optional
+            Default is HexBytes("")
+
+        `gas_limit` : int, optional
+            Override gas limit estimation. By default, method
+            performs gas estimations and add necessary buffer.
+
+        Returns
+        -------
+        TxReceipt
+        """
         value = Web3.to_wei(value_ether, "ether")
         l2_gateway = self._get_l2_contract(SCROLL_L2.L2_GATEWAY_ROUTER)
 
@@ -519,6 +761,17 @@ class Scroll:
     def get_withdrawal_params(
         self, l2_txn_hash: HexBytes
     ) -> RelayMessageWithProofParams:
+        """
+        Parameters
+        ----------
+        `l2_txn_hash` : HexBytes
+            L2 txn hash that successfully calls ETH withdrawal function.
+
+        Returns
+        -------
+        RelayMessageWithProofParams
+            TypedDict[from_, to, value, nonce, message, proof]
+        """
         receipt = self.l2_provider.eth.get_transaction_receipt(l2_txn_hash)
         sender = receipt.get("from")
 
@@ -597,6 +850,28 @@ class Scroll:
             raise ScrollError(str(e), e)
 
     def relay_message_with_proof(self, l2_txn_hash: HexBytes) -> TxReceipt:
+        """
+        This method proves the validity of requested L2
+        cross-domain message via canonical bridge. It implements
+        the `relayMessageWithProof()` in L1 Scroll Messenger contract.
+        It is an additional step the user is required to perform to
+        receive the claimable ETH via L2 withdrawals.
+
+        It usually takes ∼2-6 hours for Scroll provers to prove the batch
+        that contains your L2 message hence it is recommended to check if
+        the batch containing your L2 message txn finalizes as L2 finality
+        depends on successful validity of execution and data availability
+        on Ethereum.
+
+        Parameters
+        ----------
+        `l2_txn_hash` : HexBytes
+            L2 txn hash that successfully calls ETH withdrawal function.
+
+        Returns
+        -------
+        TxReceipt
+        """
         l1_messenger = self._get_l1_contract(SCROLL_ETHEREUM.L1_SCROLL_MESSENGER)
 
         input_params = self.get_withdrawal_params(l2_txn_hash)
