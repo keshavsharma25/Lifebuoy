@@ -145,7 +145,7 @@ class Scroll:
     def send_transaction(
         self,
         value_ether: float,
-        destination_address: ChecksumAddress | None,
+        destination_address: ChecksumAddress,
         data: HexBytes = HexBytes(""),
         gas_limit: Optional[int] = None,
     ) -> TxReceipt:
@@ -158,13 +158,11 @@ class Scroll:
         l2_base_fee: int = message_queue.functions.estimateL2BaseFee().call()
 
         l2_estimate_gas_params: TxParams = {
+            "to": destination_address,
             "value": value,
             "nonce": self.l1_provider.eth.get_transaction_count(self.account.address),
             "data": data,
         }
-
-        if destination_address:
-            l2_estimate_gas_params["to"] = destination_address
 
         if not gas_limit:
             try:
