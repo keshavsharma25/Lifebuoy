@@ -22,6 +22,9 @@ nav:
     - "Comparison": comparison.md
   - "OP Stack":
     - "OP Stack": op-stack/index.md
+    - "All there is to know about OP Stack": op-stack/features.md
+    - "Deposit Transaction": op-stack/deposit-transaction.md
+    - "Withdrawals": op-stack/withdrawals.md
   - "Nitro Stack":
     - "Nitro Stack": nitro-stack/index.md
   - "Scroll":
