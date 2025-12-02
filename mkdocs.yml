@@ -1,0 +1,48 @@
+site_name: Lifebuoy
+site_url: https://keshav0x.github.io/lifebuoy
+theme:
+  name: material
+  palette:
+    # Palette toggle for dark mode
+    scheme: slate
+    primary: indigo
+    accent: indigo
+  features:
+    - navigation.tabs
+    - navigation.indexes
+    - search.suggest
+    - content.tabs.link
+nav:
+  - "Home":
+    - "Home" : index.md
+    - "Timeline": timeline.md
+    - "Role of a sequencer": sequencer.md
+    - "The Bottleneck": bottleneck.md
+    - "Forced Inclusion": forced-inclusion.md
+    - "Comparison": comparison.md
+  - "OP Stack":
+    - "OP Stack": op-stack/index.md
+  - "Nitro Stack":
+    - "Nitro Stack": nitro-stack/index.md
+  - "Scroll":
+    - "Scroll": scroll/index.md
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  -  pymdownx.critic
+  - pymdownx.caret
+  - pymdownx.mark
+  - pymdownx.tilde
+  - attr_list
+  - md_in_html
+  - pymdownx.blocks.caption
+  - def_list
+  - pymdownx.tasklist:
+      custom_checkbox: true
