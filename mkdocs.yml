@@ -12,6 +12,7 @@ theme:
     - navigation.indexes
     - search.suggest
     - content.tabs.link
+    - content.tooltips
 nav:
   - "Home":
     - "Home" : index.md
@@ -20,11 +21,17 @@ nav:
     - "The Bottleneck": bottleneck.md
     - "Forced Inclusion": forced-inclusion.md
     - "Comparison": comparison.md
+    - "What's next": why-not-enough.md
   - "OP Stack":
     - "OP Stack": op-stack/index.md
-    - "All there is to know about OP Stack": op-stack/features.md
+    - "All there is to know about OP Stack":
+      - "Introduction": op-stack/features.md
+      - "OP-Stack Components": op-stack/components.md
+      - "Role of a sequencer": op-stack/role-of-a-sequencer.md
+      - "Transaction Lifecycle": op-stack/transaction-lifecycle.md
     - "Deposit Transaction": op-stack/deposit-transaction.md
     - "Withdrawals": op-stack/withdrawals.md
+    - "Implementation": op-stack/implementation.md
   - "Nitro Stack":
     - "Nitro Stack": nitro-stack/index.md
   - "Scroll":
@@ -35,7 +42,9 @@ markdown_extensions:
       line_spans: __span
       pygments_lang_class: true
   - pymdownx.inlinehilite
-  - pymdownx.snippets
+  - pymdownx.snippets:
+      auto_append:
+        - glossary/index.md
   - pymdownx.superfences
   - pymdownx.tabbed:
       alternate_style: true
@@ -43,9 +52,14 @@ markdown_extensions:
   - pymdownx.caret
   - pymdownx.mark
   - pymdownx.tilde
+  - abbr
   - attr_list
   - md_in_html
   - pymdownx.blocks.caption
   - def_list
   - pymdownx.tasklist:
       custom_checkbox: true
+extra_css:
+  - stylesheets/extra.css
+watch:
+  - glossary

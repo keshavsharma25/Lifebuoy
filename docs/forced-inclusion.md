@@ -6,3 +6,7 @@ be obliged to trust a centralized sequencer with their assets and can voluntaril
 exit their assets back to L1 anytime. Force inclusions or escape hatches are one
 such feature that provides an assurance that their assets are safe and can be
 withdrawn to their wish (and not by any centralized sequencer).
+
+https://www.youtube.com/watch?v=KzxdXzoPq00
+
+https://dicg-workshop.github.io/2022/papers/gorzny.pdf

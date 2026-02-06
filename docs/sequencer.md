@@ -6,7 +6,7 @@ and center even when everything is hunky dory in the rollup
 land (NOT - stage 2 wen?).
 
 Primary reason being, sequencers introduce a lot of trust issues with them.
-And trust & decentralization are often the far end pieces of a spectrum.
+And trust & decentralization are often the far end pieces in a spectrum.
 The sheer possibility of someone telling you - "Trust me bro!" should ring
 bells in your ear. Similarly, sequencers aren't criticized for their doings
 because they haven't done anything suspicious but are yelled at due to just

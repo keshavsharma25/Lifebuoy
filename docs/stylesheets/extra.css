@@ -1,0 +1,11 @@
+strong {
+color: #AAAAAA;
+}
+
+em {
+color: #BBBBBB;
+}
+
+strong em {
+color: #AAAAAA;
+}
