@@ -3,7 +3,6 @@ site_url: https://keshav0x.github.io/lifebuoy
 theme:
   name: material
   palette:
-    # Palette toggle for dark mode
     scheme: slate
     primary: indigo
     accent: indigo
@@ -24,11 +23,8 @@ nav:
     - "What's next": why-not-enough.md
   - "OP Stack":
     - "OP Stack": op-stack/index.md
-    - "All there is to know about OP Stack":
-      - "Introduction": op-stack/features.md
-      - "OP-Stack Components": op-stack/components.md
-      - "Role of a sequencer": op-stack/role-of-a-sequencer.md
-      - "Transaction Lifecycle": op-stack/transaction-lifecycle.md
+    - "All there is to know about OP Stack": op-stack/features.md
+    - "Transaction Lifecycle": op-stack/transaction-lifecycle.md
     - "Deposit Transaction": op-stack/deposit-transaction.md
     - "Withdrawals": op-stack/withdrawals.md
     - "Implementation": op-stack/implementation.md
