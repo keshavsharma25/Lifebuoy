@@ -19,6 +19,7 @@ nav:
     - "Role of a sequencer": sequencer.md
     - "The Bottleneck": bottleneck.md
     - "Forced Inclusion": forced-inclusion.md
+    - "Walkaway Test": walkaway-test.md
     - "Comparison": comparison.md
     - "What's next": why-not-enough.md
   - "OP Stack":

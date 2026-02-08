@@ -6,25 +6,6 @@ these get censored. However, it is also important for us to understand
 a few important internals of OP-Stack to truly grasp the concept i.e.
 forced-inclusion.
 
-## Features
-
-OP Stack offers alot of features out of the box:
-
-- [Full EVM Equivalence](https://medium.com/ethereum-optimism/introducing-evm-equivalence-5c2021deb306)
-- Permissionless fault proof system via [Cannon](https://www.optimism.io/blog/permissionless-fault-proofs-and-stage-1-arrive-to-the-op-stack)
-- Modular architecture for customizable rollups under the same umbrella known
-as [Superchain](https://docs.optimism.io/superchain/introduction/superchain-explainer) (for composable interoperabitiliy)
-- A [trust-minimized bridging and cross-chain messaging](https://specs.optimism.io/protocol/bridges.html) for secure and seamless
-interaction between L1, L2, and interconnect chains in the Superchain ecosystem.
-- Optimal data compression to reduce gas costs while publishing L2 data on L1
-via blobs post-Dencun in March, 2024.
-- Low transaction fees.
-- Liberty to [force-include](https://docs.optimism.io/op-stack/bridging/deposit-flow#denial-of-service-dos-prevention) transactions which overrides the sequencer in case
-sequencer is down or is acting malicious.
-- Recent [Flashblocks](https://writings.flashbots.net/introducing-rollup-boost) integration provides fast confirmations times (~250ms)
-and verifiable priority ordering (via TEEs) to internalize MEV and help improve
-UX.
-
 ## Components of OP-Stack
 
 OP Stack features `op-node`, a specialized extension to Geth (Go-Ethereum) client
@@ -52,10 +33,6 @@ via other replica nodes.
 
 This component of the OP-Stack requires user's trust.
 
-Almost all chains in the Superchain ecosystem uses a single centralized sequencer
-as of today; quite afar from theoretical significance of a decentralized
-sequencer.
-
 ### Batcher
 
 
@@ -65,3 +42,8 @@ sequencer.
 ### Challenger
 
 ## What's wrong???
+
+Almost all chains in the Superchain ecosystem uses a single centralized sequencer
+as of today; quite afar from theoretical significance of a decentralized
+sequencer.
+
